@@ -1,5 +1,7 @@
 import { BuffConfig, ItemStats } from '../types/sim';
 
+export * from './racials';
+
 export interface BuffDefinition {
   id: string;
   name: string;
@@ -15,89 +17,6 @@ export interface BuffDefinition {
 }
 
 export const BUFFS_DATABASE: BuffDefinition[] = [
-  // ==========================================
-  // WORLD BUFFS
-  // ==========================================
-  {
-    id: 'rallyingCryOfDragonslayer',
-    name: 'Rallying Cry of the Dragonslayer',
-    category: 'world',
-    icon: 'spell_holy_prayerofhealing02',
-    description: '+10% Melee Critical Strike, +140 Attack Power (Head of Onyxia/Nefarian)',
-    stats: { crit: 10.0, ap: 140 },
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'songflowerSerenade',
-    name: 'Songflower Serenade',
-    category: 'world',
-    icon: 'spell_holy_mindvision',
-    description: '+5% Melee Critical Strike, +15 All Stats (Felwood Cleansed Songflower)',
-    stats: { crit: 5.0, str: 15, agi: 15, sta: 15 },
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'warchiefsBlessing',
-    name: "Warchief's Blessing",
-    category: 'world',
-    icon: 'spell_arcane_teleportorgrimmar',
-    description: '+300 Maximum Health, +15% Melee Haste (Head of Rend Blackhand)',
-    stats: { haste: 15.0 },
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'spiritOfZandalar',
-    name: 'Spirit of Zandalar',
-    category: 'world',
-    icon: 'ability_creature_poison_05',
-    description: '+15% All Stats, +10% Movement Speed (Heart of Hakkar)',
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'saygesFortune',
-    name: "Sayge's Fortune (Darkmoon Faire)",
-    category: 'world',
-    icon: 'inv_misc_ticket_tarot_stack_01',
-    description: '+10% Damage Dealt (Darkmoon Faire Fortune Question 1-1)',
-    defaultValue: 10,
-    type: 'number',
-    min: 0,
-    max: 10,
-    step: 10,
-  },
-  {
-    id: 'fengusFerocity',
-    name: "Fengus' Ferocity (DM North)",
-    category: 'world',
-    icon: 'spell_nature_undyingstrength',
-    description: '+200 Attack Power (Dire Maul North Tribute Run)',
-    stats: { ap: 200 },
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'moldarsMoxie',
-    name: "Mol'dar's Moxie (DM North)",
-    category: 'world',
-    icon: 'spell_nature_massteleport',
-    description: '+15% Stamina (Dire Maul North Tribute Run)',
-    defaultValue: true,
-    type: 'boolean',
-  },
-  {
-    id: 'slipkiksSavvy',
-    name: "Slip'kik's Savvy (DM North)",
-    category: 'world',
-    icon: 'spell_holy_lesserheal02',
-    description: '+3% Spell Critical Strike (Dire Maul North Tribute Run)',
-    defaultValue: false,
-    type: 'boolean',
-  },
-
   // ==========================================
   // CONSUMABLES
   // ==========================================
@@ -437,18 +356,18 @@ export function getBuffsByCategory(category: BuffDefinition['category']): BuffDe
 }
 
 export const DEFAULT_BUFF_CONFIG: BuffConfig = {
-  // World Buffs (Rust canonical & UI keys)
-  rallyingCry: true,
-  rallyingCryOfDragonslayer: true,
-  songflower: true,
-  songflowerSerenade: true,
-  warchiefsBlessing: true,
-  spiritOfZandalar: true,
-  direMaulTribute: true,
-  fengusFerocity: true,
-  darkmoonFaire: true,
-  saygesFortune: 10,
-  moldarsMoxie: true,
+  // World Buffs (Disabled in WoW: Forever Raids)
+  rallyingCry: false,
+  rallyingCryOfDragonslayer: false,
+  songflower: false,
+  songflowerSerenade: false,
+  warchiefsBlessing: false,
+  spiritOfZandalar: false,
+  direMaulTribute: false,
+  fengusFerocity: false,
+  darkmoonFaire: false,
+  saygesFortune: 0,
+  moldarsMoxie: false,
   slipkiksSavvy: false,
 
   // Consumables

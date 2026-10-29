@@ -5,38 +5,69 @@
 @layer base {
   :root {
     color-scheme: dark;
+    --md-sys-color-background: #111318;
+    --md-sys-color-surface: #111318;
+    --md-sys-color-surface-container: #1d2024;
+    --md-sys-color-primary: #a8c7fa;
   }
 
   body {
-    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    @apply bg-[#111318] text-[#e2e2e9] font-sans antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    background-color: #07090e;
+    background-color: #111318;
     background-image: 
-      radial-gradient(at 0% 0%, rgba(198, 155, 109, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(180, 83, 9, 0.05) 0px, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(40, 71, 119, 0.12) 0px, transparent 40%),
+      radial-gradient(at 100% 100%, rgba(62, 71, 89, 0.12) 0px, transparent 40%);
   }
 
-  /* Sleek custom scrollbars */
+  /* Material 3 Sleek Scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #0b0f19;
+    background: #111318;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #1e293b;
-    border-radius: 3px;
+    background: #282a2f;
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #c69b6d;
+    background: #33353a;
   }
 }
 
-/* WoW Quality Colors & Accents */
+/* Material 3 Tonal Card and Chip utilities */
+@layer components {
+  .m3-card {
+    @apply bg-[#1d2024] border border-[#44474e]/40 rounded-2xl shadow-sm transition-all;
+  }
+
+  .m3-card-subtle {
+    @apply bg-[#191c20] border border-[#44474e]/30 rounded-2xl;
+  }
+
+  .m3-card-high {
+    @apply bg-[#282a2f] border border-[#44474e]/50 rounded-2xl shadow-md;
+  }
+
+  .m3-pill-btn {
+    @apply rounded-full px-4 py-2 font-medium text-xs transition-all flex items-center justify-center gap-2;
+  }
+
+  .m3-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#44474e]/40 bg-[#1d2024] text-[#c4c6d0] transition-all select-none;
+  }
+
+  .m3-chip-selected {
+    @apply bg-[#284777] border-[#a8c7fa]/60 text-[#d6e3ff] shadow-sm;
+  }
+}
+
+/* WoW Quality Colors (Retained for item gear rarity) */
 .text-quality-legendary {
   color: #ff8000;
 }
@@ -50,7 +81,7 @@
   color: #1eff00;
 }
 .text-quality-common {
-  color: #ffffff;
+  color: #e2e2e9;
 }
 
 .border-quality-legendary {
@@ -65,6 +96,14 @@
 .border-quality-uncommon {
   border-color: #1eff00;
 }
+.border-quality-common {
+  border-color: #44474e;
+}
+
+/* Material 3 Range Slider Styling */
+input[type="range"] {
+  @apply accent-[#a8c7fa] bg-[#282a2f] rounded-full h-1.5;
+}
 
 /* Animations */
 @keyframes pulse-subtle {
@@ -72,7 +111,7 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.7;
+    opacity: 0.65;
   }
 }
 

@@ -14,12 +14,12 @@ interface PaperDollProps {
 }
 
 const QUALITY_COLORS: Record<ItemQuality, { border: string; text: string; bg: string }> = {
-  legendary: { border: 'border-amber-500', text: 'text-amber-400', bg: 'bg-amber-950/20' },
-  epic: { border: 'border-purple-500', text: 'text-purple-400', bg: 'bg-purple-950/20' },
-  rare: { border: 'border-blue-500', text: 'text-blue-400', bg: 'bg-blue-950/20' },
-  uncommon: { border: 'border-emerald-500', text: 'text-emerald-400', bg: 'bg-emerald-950/20' },
-  common: { border: 'border-slate-500', text: 'text-slate-300', bg: 'bg-slate-900/40' },
-  poor: { border: 'border-neutral-600', text: 'text-neutral-400', bg: 'bg-neutral-900/40' },
+  legendary: { border: 'border-[#ff8000]/70', text: 'text-[#ff8000]', bg: 'bg-[#ff8000]/10' },
+  epic: { border: 'border-[#a335ee]/70', text: 'text-[#a335ee]', bg: 'bg-[#a335ee]/10' },
+  rare: { border: 'border-[#0070dd]/70', text: 'text-[#0070dd]', bg: 'bg-[#0070dd]/10' },
+  uncommon: { border: 'border-[#1eff00]/70', text: 'text-[#1eff00]', bg: 'bg-[#1eff00]/10' },
+  common: { border: 'border-[#44474e]/60', text: 'text-[#e2e2e9]', bg: 'bg-[#1d2024]' },
+  poor: { border: 'border-[#44474e]/40', text: 'text-[#8e9099]', bg: 'bg-[#191c20]' },
 };
 
 const SLOT_LABELS: Record<EquipmentSlot, string> = {
@@ -84,20 +84,20 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
       <div
         key={slot}
         onClick={() => onSelectSlot(slot)}
-        className={`group relative flex items-center p-2 rounded-lg cursor-pointer border transition-all duration-150 select-none ${
+        className={`group relative flex items-center p-2 rounded-xl cursor-pointer border transition-all duration-150 select-none ${
           isSelected
-            ? 'ring-2 ring-amber-400 border-amber-400 bg-amber-950/30 shadow-lg shadow-amber-900/30'
+            ? 'ring-2 ring-[#a8c7fa] border-[#a8c7fa] bg-[#284777]/35 shadow-sm'
             : item
-            ? `${styling?.border} ${styling?.bg} hover:border-amber-500/70 hover:bg-slate-800/80`
-            : 'border-slate-800/80 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-800/40'
+            ? `${styling?.border} ${styling?.bg} hover:border-[#a8c7fa]/60 hover:bg-[#282a2f]/60`
+            : 'border-[#44474e]/30 bg-[#1d2024]/60 hover:border-[#44474e]/60 hover:bg-[#282a2f]/40'
         }`}
       >
         {/* Slot Icon or Item Quality Box */}
         <div
-          className={`w-10 h-10 rounded border flex items-center justify-center shrink-0 mr-2.5 text-xs font-bold overflow-hidden ${
+          className={`w-10 h-10 rounded-lg border flex items-center justify-center shrink-0 mr-2.5 text-xs font-bold overflow-hidden ${
             item
-              ? `${styling?.border} bg-slate-950 shadow-inner`
-              : 'border-dashed border-slate-700 text-slate-500 bg-slate-950/60'
+              ? `${styling?.border} bg-[#111318] shadow-inner`
+              : 'border-dashed border-[#44474e]/50 text-[#8e9099] bg-[#111318]/60'
           }`}
         >
           {item ? (
@@ -116,40 +116,40 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
               </span>
             )
           ) : (
-            <span className="text-[10px] uppercase text-slate-500">{slot.slice(0, 3)}</span>
+            <span className="text-[10px] uppercase text-[#8e9099] font-mono">{slot.slice(0, 3)}</span>
           )}
         </div>
 
         {/* Item Info */}
         <div className="flex-1 min-w-0 pr-1">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-[#8e9099]">
               {SLOT_LABELS[slot]}
             </span>
             {item?.phase && (
-              <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-amber-300 font-mono">
+              <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#111318] text-[#a8c7fa] font-mono border border-[#44474e]/30">
                 {item.phase}
               </span>
             )}
           </div>
 
           <div
-            className={`text-xs font-medium truncate ${
-              item ? styling?.text : 'text-slate-500 italic'
+            className={`text-xs font-semibold truncate ${
+              item ? styling?.text : 'text-[#8e9099] italic'
             }`}
           >
             {item ? item.name : 'Empty Slot'}
           </div>
 
           {item && statPreview && (
-            <div className="text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+            <div className="text-[10px] text-[#c4c6d0] truncate mt-0.5 font-mono">
               {statPreview}
             </div>
           )}
 
           {enchant && (
-            <div className="flex items-center text-[10px] text-emerald-400 truncate mt-0.5">
-              <Sparkles className="w-2.5 h-2.5 mr-1 shrink-0" />
+            <div className="flex items-center text-[10px] text-[#81c995] truncate mt-0.5">
+              <Sparkles className="w-2.5 h-2.5 mr-1 shrink-0 text-[#81c995]" />
               <span className="truncate">{enchant.name}</span>
             </div>
           )}
@@ -163,7 +163,7 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
               onUnequip(slot);
             }}
             title="Unequip item"
-            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-950/60 hover:text-red-400 text-slate-500 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-full hover:bg-[#8c1d18]/50 hover:text-[#f28b82] text-[#8e9099] transition-all"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -173,12 +173,14 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col h-full">
+    <div className="bg-[#191c20] border border-[#44474e]/30 rounded-2xl p-4 shadow-sm flex flex-col h-full">
       {/* Paper-Doll Header & Preset Selector */}
-      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#44474e]/30">
         <div className="flex items-center space-x-2">
-          <Shield className="w-5 h-5 text-amber-400" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-200">
+          <span className="p-1 rounded-lg bg-[#284777]/40 text-[#a8c7fa]">
+            <Shield className="w-4 h-4" />
+          </span>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-[#d6e3ff]">
             Equipment Frame
           </h2>
         </div>
@@ -188,7 +190,7 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
             <select
               value={currentPresetId || ''}
               onChange={(e) => onSelectPreset(e.target.value)}
-              className="appearance-none bg-slate-950 border border-slate-700 hover:border-amber-500 text-amber-300 text-xs rounded-lg pl-2.5 pr-7 py-1 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+              className="appearance-none bg-[#1d2024] border border-[#44474e]/50 hover:border-[#a8c7fa] text-[#d6e3ff] text-xs rounded-full pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] cursor-pointer transition-all font-medium"
             >
               <option value="" disabled>
                 Select Gear Preset...
@@ -199,13 +201,13 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
                 </option>
               ))}
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-amber-400 absolute right-2 top-2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#a8c7fa] absolute right-2.5 top-2.5 pointer-events-none" />
           </div>
         )}
       </div>
 
       {/* Classic 2-Column Equipment Layout */}
-      <div className="grid grid-cols-2 gap-2.5 flex-1 overflow-y-auto pr-1">
+      <div className="grid grid-cols-2 gap-2 flex-1 overflow-y-auto pr-1">
         {/* Left Column (Head to Wrist) */}
         <div className="space-y-2">
           {LEFT_SLOTS.map(renderSlotCard)}
@@ -218,9 +220,10 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
       </div>
 
       {/* Bottom Row Weapons (Main Hand, Off Hand, 2-Hand, Ranged) */}
-      <div className="pt-3 mt-3 border-t border-slate-800">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mb-2">
-          Weapons & Ranged
+      <div className="pt-3 mt-3 border-t border-[#44474e]/30">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-[#8e9099] mb-2 flex items-center justify-between">
+          <span>Weapons &amp; Ranged</span>
+          <span className="text-[9px] font-mono text-[#a8c7fa]">Anti-Queue BiS Active</span>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {BOTTOM_SLOTS.map(renderSlotCard)}

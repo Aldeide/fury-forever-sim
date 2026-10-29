@@ -252,4 +252,103 @@ mod tests {
         let ap_weight = sw_res.weights.iter().find(|w| w.stat == "ap").expect("AP weight found");
         assert!((ap_weight.ep_per_point - 1.0).abs() < 1e-2, "AP EP should be 1.0");
     }
+
+    #[test]
+    fn test_wow_forever_racials_and_disabled_world_buffs() {
+        let mut base_cfg = create_test_config();
+        base_cfg.race = "human".to_string();
+        base_cfg.buffs = BuffConfig {
+            rallying_cry: true,
+            songflower: true,
+            warchiefs_blessing: true,
+            spirit_of_zandalar: true,
+            dire_maul_tribute: true,
+            darkmoon_faire: true,
+            battle_shout: false,
+            ..Default::default()
+        };
+
+        // Compute sheet: World buffs must NOT apply!
+        let sheet_human = compute_character_sheet(&base_cfg);
+        // Base str for human: 120 + gear 15 = 135 (no spirit of zandalar 1.15, no songflower +15)
+        assert_eq!(sheet_human.total_str, 135.0, "World buff stats should not apply");
+        // Base AP: 160 + 135 * 2 = 430 (no rallying cry +140, no tribute +200)
+        assert_eq!(sheet_human.total_ap, 430.0, "World buff AP should not apply");
+        // Haste: 0 (no warchief's blessing 15%)
+        assert_eq!(sheet_human.haste_pct, 0.0, "World buff haste should not apply");
+
+        // Human has +1.0% crit from Ruthless
+        // Dwarf with identical gear has +1.0% hit from Artisan's Precision
+        let mut dwarf_cfg = base_cfg.clone();
+        dwarf_cfg.race = "dwarf".to_string();
+        let sheet_dwarf = compute_character_sheet(&dwarf_cfg);
+        assert!((sheet_dwarf.mh_hit_pct - (sheet_human.mh_hit_pct + 1.0)).abs() < 1e-4, "Dwarf should have +1% hit over Human");
+
+        // Skyborne Elf has +2.0% haste from Wind-Blessed
+        let mut skyborne_cfg = base_cfg.clone();
+        skyborne_cfg.race = "skyborne_elf".to_string();
+        let sheet_skyborne = compute_character_sheet(&skyborne_cfg);
+        assert_eq!(sheet_skyborne.haste_pct, 2.0, "Skyborne should have +2% haste");
+
+        // Weapon skill racials are removed:
+        // Human with swords has weapon skill = 300 (no +5 sword bonus!)
+        let mut sword_cfg = base_cfg.clone();
+        sword_cfg.race = "human".to_string();
+        sword_cfg.talents.weaponmaster = 0;
+        let sheet_sword = compute_character_sheet(&sword_cfg);
+        // Yellow miss at 300 skill vs level 63 (delta=15): 5.0 + 15 * 0.2 = 8.0%.
+        // With 1% gear hit: yellow miss = 7.0%
+        assert_eq!(sheet_sword.yellow_miss_pct, 7.0, "Human with swords should have no innate weapon skill bonus");
+
+        // Orc with axes has weapon skill = 300 (no +5 axe bonus!)
+        let mut axe_cfg = base_cfg.clone();
+        axe_cfg.race = "orc".to_string();
+        axe_cfg.talents.weaponmaster = 0;
+        let sheet_axe = compute_character_sheet(&axe_cfg);
+        assert_eq!(sheet_axe.yellow_miss_pct, 7.0, "Orc with axes should have no innate weapon skill bonus");
+    }
+
+    #[test]
+    fn test_orc_blood_fury_and_undead_touch_of_the_grave() {
+        // Orc simulation tracks Blood Fury uptime
+        let mut orc_cfg = create_test_config();
+        orc_cfg.race = "orc".to_string();
+        orc_cfg.encounter.iterations = 50;
+        orc_cfg.encounter.duration_sec = 60.0;
+        let res_orc = run_sim(&orc_cfg);
+        assert!(res_orc.proc_uptimes.contains_key("Blood Fury"), "Orc should track Blood Fury in proc_uptimes");
+        let bf_uptime = res_orc.proc_uptimes.get("Blood Fury").unwrap();
+        assert!(*bf_uptime > 0.0, "Blood Fury uptime should be positive");
+
+        // Undead simulation records Touch of the Grave
+        let mut ud_cfg = create_test_config();
+        ud_cfg.race = "undead".to_string();
+        ud_cfg.encounter.iterations = 50;
+        ud_cfg.encounter.duration_sec = 60.0;
+        let res_ud = run_sim(&ud_cfg);
+        let totg = res_ud.abilities.iter().find(|a| a.name == "Touch of the Grave");
+        assert!(totg.is_some(), "Undead should have Touch of the Grave in abilities breakdown");
+        assert!(totg.unwrap().total_damage > 0.0, "Touch of the Grave should deal damage");
+    }
+
+    #[test]
+    fn test_execute_phase_bt_pooling_logic() {
+        let mut cfg = create_test_config();
+        cfg.encounter.duration_sec = 60.0;
+        cfg.encounter.execute_phase_pct = 100.0; // 100% execute phase
+        cfg.encounter.iterations = 50;
+        cfg.rotation.use_bloodthirst = true;
+        cfg.rotation.use_execute = true;
+        cfg.rotation.use_bt_in_execute = true;
+        // With threshold <= current AP (~700 with Battle Shout), BT will be cast when off CD
+        cfg.rotation.execute_bt_ap_threshold = 600.0;
+        cfg.rotation.execute_rage_pool_threshold = 45.0;
+
+        let res = run_sim(&cfg);
+        let bt = res.abilities.iter().find(|a| a.name == "Bloodthirst");
+        let exec = res.abilities.iter().find(|a| a.name == "Execute");
+        assert!(bt.is_some(), "Bloodthirst should be cast during execute phase");
+        assert!(exec.is_some(), "Execute should be cast during execute phase");
+        assert!(bt.unwrap().casts > 0.0, "BT casts should be > 0 during execute phase with high AP/pooling");
+    }
 }

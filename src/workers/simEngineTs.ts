@@ -41,8 +41,8 @@ class FastRng {
 /**
  * Calculate effective character sheet stats from Gear, Enchants, Talents, Buffs, and Race.
  */
-export function calculateCharacterSheet(config: SimConfig): CharacterSheetSummary {
-  const { gear = {}, enchants = {}, talents = {}, buffs = {}, race } = config;
+export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): CharacterSheetSummary {
+  const { gear = {}, enchants = {}, talents = {}, buffs = {}, race } = config || {};
 
   // Base Level 60 Warrior Stats
   let baseStr = 120;
@@ -54,48 +54,55 @@ export function calculateCharacterSheet(config: SimConfig): CharacterSheetSummar
   let baseHaste = 0.0;
   let baseArmor = 0;
 
-  // Racial adjustments
-  let racialSwordSkill = 0;
-  let racialMaceSkill = 0;
-  let racialAxeSkill = 0;
-  let racialDaggerSkill = 0;
-
-  const raceNormalized = String(race).toLowerCase();
+  // Racial adjustments (WoW: Forever - Oct 26-28 2026: weapon skill racials removed)
+  const raceNormalized = String(race || 'human').toLowerCase();
   switch (raceNormalized) {
     case 'human':
-      racialSwordSkill = 5;
-      racialMaceSkill = 5;
+      // Ruthless (+1.0% Crit)
+      baseCrit += 1.0;
       break;
     case 'orc':
       baseStr += 3;
       baseAgi -= 3;
-      racialAxeSkill = 5;
-      break;
-    case 'troll':
-      baseStr += 1;
-      baseAgi += 2;
+      baseSta += 2;
       break;
     case 'tauren':
       baseStr += 5;
       baseAgi -= 5;
+      baseSta += 2;
       break;
-    case 'gnome':
-      baseStr -= 5;
-      baseAgi += 3;
+    case 'undead':
+      baseStr -= 1;
+      baseAgi -= 2;
+      baseSta += 1;
+      break;
+    case 'troll':
+      baseStr += 1;
+      baseAgi += 2;
+      baseSta += 1;
       break;
     case 'dwarf':
       baseStr += 2;
       baseAgi -= 4;
-      racialMaceSkill = 5;
+      baseSta += 3;
+      // Artisan's Precision (+1.0% Hit)
+      baseHit += 1.0;
       break;
     case 'night_elf':
     case 'nightelf':
       baseStr -= 3;
       baseAgi += 5;
       break;
-    case 'undead':
-      baseStr -= 1;
-      baseAgi -= 2;
+    case 'gnome':
+      baseStr -= 5;
+      baseAgi += 3;
+      baseSta -= 1;
+      break;
+    case 'skyborne_elf':
+    case 'skyborne':
+      baseAgi += 2;
+      // Wind-Blessed (+2.0% Haste)
+      baseHaste += 2.0;
       break;
   }
 
@@ -157,23 +164,14 @@ export function calculateCharacterSheet(config: SimConfig): CharacterSheetSummar
     gearSta *= 1.1;
   }
 
-  if (buffs.rallyingCryOfDragonslayer) {
-    buffCrit += 10.0;
-    buffAp += 140;
-  }
-  if (buffs.songflowerSerenade) {
-    buffCrit += 5.0;
-    buffStr += 15;
-    buffAgi += 15;
-  }
-  if (buffs.warchiefsBlessing) {
-    buffHaste += 15.0;
-  }
-  if (buffs.spiritOfZandalar) {
-    buffStr *= 1.15;
-    buffAgi *= 1.15;
-  }
-  if (buffs.fengusFerocity) buffAp += 200;
+  // World Buffs are completely disabled in WoW: Forever raids:
+  // - Rallying Cry of the Dragonslayer
+  // - Songflower Serenade
+  // - Warchief's Blessing
+  // - Spirit of Zandalar
+  // - Fengus' Ferocity / Dire Maul Tribute
+  // (Left inactive to mirror sim-core stats.rs)
+
   if (buffs.elixirOfMongoose) {
     buffAgi += 25;
     buffCrit += 2.0;
@@ -211,27 +209,12 @@ export function calculateCharacterSheet(config: SimConfig): CharacterSheetSummar
   const totalOhHit = +(gearOhHit + (talents.furiousPrecision ? (talents.furiousPrecision === 1 ? 4 : talents.furiousPrecision === 2 ? 7 : 10) : 0)).toFixed(2);
   const totalHaste = +(baseHaste + gearHaste + buffHaste).toFixed(2);
 
-  // Weapons check
+  // Weapons check (Weapon skill racials removed in WoW: Forever)
   const mh = gear.mainhand || gear.twohand || null;
   const oh = gear.twohand ? null : gear.offhand || null;
 
-  const mhType = (mh?.weaponType || 'sword').toLowerCase();
-  const ohType = (oh?.weaponType || 'sword').toLowerCase();
-
-  let mhSkill = 300 + weaponMasterySkill + gearWeaponSkill;
-  let ohSkill = 300 + weaponMasterySkill + gearWeaponSkill;
-
-  if (mhType.includes('sword')) mhSkill += racialSwordSkill;
-  else if (mhType.includes('axe')) mhSkill += racialAxeSkill;
-  else if (mhType.includes('mace')) mhSkill += racialMaceSkill;
-  else if (mhType.includes('dagger')) mhSkill += racialDaggerSkill;
-
-  if (oh) {
-    if (ohType.includes('sword')) ohSkill += racialSwordSkill;
-    else if (ohType.includes('axe')) ohSkill += racialAxeSkill;
-    else if (ohType.includes('mace')) ohSkill += racialMaceSkill;
-    else if (ohType.includes('dagger')) ohSkill += racialDaggerSkill;
-  }
+  const mhSkill = 300 + weaponMasterySkill + gearWeaponSkill;
+  const ohSkill = 300 + weaponMasterySkill + gearWeaponSkill;
 
   const mhSpeed = mh?.speed || 2.6;
   const ohSpeed = oh?.speed || 2.6;
@@ -335,6 +318,10 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
   const mhWhiteMiss = stats.mhWhiteMissPct / 100.0;
   const ohWhiteMiss = stats.ohWhiteMissPct / 100.0;
 
+  const raceNormalized = String(config.race || 'human').toLowerCase();
+  const isUndead = raceNormalized === 'undead';
+  const maxRage = raceNormalized === 'gnome' ? 105 : 100;
+
   const glancingChance = 0.40;
   const glancingPenalty = (stats.mhSkill || 300) >= 305 ? 0.15 : 0.35;
 
@@ -361,6 +348,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     'Auto-Attack (MH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Auto-Attack (OH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Deep Wounds': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Touch of the Grave': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
   };
 
   const fightDpsList: number[] = new Array(iterations);
@@ -377,10 +365,20 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
   const baseCrit = stats.critPct || 20;
   const baseHaste = stats.hastePct || 0;
 
+  // Track active time across iterations for proc uptimes
+  let totalBloodFuryTime = 0.0;
+  let totalBerserkingTime = 0.0;
+  let totalElunesLightTime = 0.0;
+  let totalEurekaTime = 0.0;
+  let totalCrusaderMhTime = 0.0;
+  let totalCrusaderOhTime = 0.0;
+  let totalDeathWishTime = 0.0;
+  let totalFlurryTime = 0.0;
+
   for (let it = 0; it < iterations; it++) {
     let time = 0.0;
     let rage = buffs.mightyRagePotion ? 60 : 0;
-    if (rotation.useBloodrage) rage += 20;
+    if (rotation.useBloodrage) rage = Math.min(maxRage, rage + 20);
 
     let fightDamage = 0;
     let mhTimer = 0.0;
@@ -388,12 +386,19 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     let gcdTimer = 0.0;
     let btCd = 0.0;
     let wwCd = 0.0;
+    let racialCd = 0.0;
     let overpowerAvailableUntil = -1.0;
     let flurryCharges = 0;
     let deathWishActiveUntil = -1.0;
     let recklessnessActiveUntil = -1.0;
     let crusaderMhActiveUntil = -1.0;
     let crusaderOhActiveUntil = -1.0;
+    let bloodFuryActiveUntil = -1.0;
+    let berserkingActiveUntil = -1.0;
+    let elunesLightActiveUntil = -1.0;
+    let eurekaActiveUntil = -1.0;
+    let eurekaCharges = 0;
+    let touchOfTheGraveCd = 0.0;
     let deepWoundsTicks = 0;
     let deepWoundsTickDamage = 0;
     let nextDeepWoundsTick = -1.0;
@@ -401,6 +406,17 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     const timeStep = 0.1;
     const executePct = encounter.executePhasePct ?? encounter.executePercentage ?? 20;
     const executeThresholdTime = duration * (1.0 - executePct / 100.0);
+
+    const checkTouchOfTheGrave = () => {
+      if (isUndead && time >= touchOfTheGraveCd) {
+        touchOfTheGraveCd = time + 15.0;
+        const totgDmg = 55;
+        fightDamage += totgDmg;
+        abilityStats['Touch of the Grave'].casts++;
+        abilityStats['Touch of the Grave'].hits++;
+        abilityStats['Touch of the Grave'].damage += totgDmg;
+      }
+    };
 
     while (time < duration) {
       if (rotation.useDeathWish && talents.deathWish && deathWishActiveUntil < time - 180 && time >= (rotation.deathWishTiming || 0)) {
@@ -413,14 +429,53 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
         recklessnessActiveUntil = time + 15.0;
       }
 
+      // Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
+      if (rotation.useRacial !== false && racialCd <= 0.0) {
+        if (raceNormalized === 'orc') {
+          racialCd = 120.0;
+          bloodFuryActiveUntil = time + 15.0;
+        } else if (raceNormalized === 'troll') {
+          racialCd = 180.0;
+          berserkingActiveUntil = time + 15.0;
+        } else if (raceNormalized === 'night_elf' || raceNormalized === 'nightelf') {
+          racialCd = 180.0;
+          elunesLightActiveUntil = time + 15.0;
+        } else if (raceNormalized === 'gnome') {
+          racialCd = 180.0;
+          eurekaActiveUntil = time + 15.0;
+          eurekaCharges = 3;
+        }
+      }
+
       let currentAp = baseAp;
       if (crusaderMhActiveUntil > time) currentAp += 100;
       if (crusaderOhActiveUntil > time) currentAp += 100;
+      if (bloodFuryActiveUntil > time) currentAp *= 1.10;
       if (deathWishActiveUntil > time) currentAp *= 1.20;
 
       let currentHaste = baseHaste;
+      if (berserkingActiveUntil > time) currentHaste += 10.0;
       if (flurryCharges > 0) currentHaste += (talents.flurry ? talents.flurry * 6.0 : 30.0);
       const hasteMult = 1.0 + currentHaste / 100.0;
+
+      let currentCrit = baseCrit;
+      if (elunesLightActiveUntil > time) currentCrit += 10.0;
+      if (recklessnessActiveUntil > time) currentCrit += 100.0;
+
+      // Eureka Active State
+      const eurekaActive = eurekaActiveUntil > time && eurekaCharges > 0;
+      const abilityCostDiscount = eurekaActive ? 5.0 : 0.0;
+      const abilityDmgMult = eurekaActive ? 1.10 : 1.0;
+
+      // Proc Uptime accumulation
+      if (crusaderMhActiveUntil > time) totalCrusaderMhTime += timeStep;
+      if (crusaderOhActiveUntil > time) totalCrusaderOhTime += timeStep;
+      if (deathWishActiveUntil > time) totalDeathWishTime += timeStep;
+      if (bloodFuryActiveUntil > time) totalBloodFuryTime += timeStep;
+      if (berserkingActiveUntil > time) totalBerserkingTime += timeStep;
+      if (elunesLightActiveUntil > time) totalElunesLightTime += timeStep;
+      if (eurekaActiveUntil > time) totalEurekaTime += timeStep;
+      if (flurryCharges > 0) totalFlurryTime += timeStep;
 
       if (deepWoundsTicks > 0 && time >= nextDeepWoundsTick) {
         fightDamage += deepWoundsTickDamage;
@@ -434,19 +489,34 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
 
       // GCD Ability
       if (gcdTimer <= 0) {
+        const opCost = Math.max(0, 5 - abilityCostDiscount);
+        const execCost = Math.max(0, executeBaseCost - abilityCostDiscount);
+        const btCost = Math.max(0, btRageCost - abilityCostDiscount);
+        const wwCost = Math.max(0, wwRageCost - abilityCostDiscount);
+
+        const poolThresh = rotation.executeRagePoolThreshold ?? 45.0;
+        const btApThresh = rotation.executeBtApThreshold ?? 2000.0;
+        const preferBt = (rotation.useBloodthirst ?? true) &&
+          (rotation.useBtInExecute ?? true) &&
+          Boolean(talents.bloodthirst) &&
+          btCd <= 0 &&
+          rage >= btCost &&
+          (currentAp >= btApThresh || rage >= poolThresh);
+
         if (
           overpowerAvailableUntil > time &&
           talents.improvedOverpower &&
           rage <= opMaxRage &&
-          rage >= 5
+          rage >= opCost
         ) {
           rage = Math.min(rage, tacticalMasteryRetained);
-          rage -= 5;
+          rage -= opCost;
           abilityStats['Overpower'].casts++;
-          const opCrit = (baseCrit + (talents.improvedOverpower * 25)) / 100.0;
+          if (eurekaActive) eurekaCharges--;
+          const opCrit = (currentCrit + (talents.improvedOverpower * 25)) / 100.0;
           const isCrit = rng.next() < opCrit;
           const avgMhDmg = (mhMinDmg + mhMaxDmg) / 2 + (currentAp / 14) * 2.4;
-          let opDmg = (avgMhDmg + 35) * armorMultiplier;
+          let opDmg = (avgMhDmg + 35) * armorMultiplier * abilityDmgMult;
           if (isCrit) {
             opDmg *= 2.0;
             abilityStats['Overpower'].crits++;
@@ -456,22 +526,24 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
           }
           fightDamage += opDmg;
           abilityStats['Overpower'].damage += opDmg;
+          checkTouchOfTheGrave();
           overpowerAvailableUntil = -1.0;
           gcdTimer = 1.5;
-        } else if (isExecutePhase && rage >= executeBaseCost) {
+        } else if (!preferBt && isExecutePhase && rage >= execCost) {
           abilityStats['Execute'].casts++;
+          if (eurekaActive) eurekaCharges--;
           const roll = rng.next();
           if (roll < yellowMissChance) {
             abilityStats['Execute'].misses++;
-            rage -= executeBaseCost;
+            rage -= execCost;
           } else if (roll < yellowMissChance + yellowDodgeChance) {
             abilityStats['Execute'].dodges++;
             overpowerAvailableUntil = time + 5.0;
-            rage -= Math.round(executeBaseCost * 0.2);
+            rage -= Math.round(execCost * 0.2);
           } else {
-            const isCrit = rng.next() < (baseCrit / 100.0);
-            const extraRage = Math.max(0, rage - executeBaseCost);
-            let dmg = (600 + extraRage * 15) * armorMultiplier;
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            const extraRage = Math.max(0, rage - execCost);
+            let dmg = (600 + extraRage * 15) * armorMultiplier * abilityDmgMult;
             rage = 0;
             if (isCrit) {
               dmg *= 2.0;
@@ -482,22 +554,24 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             }
             fightDamage += dmg;
             abilityStats['Execute'].damage += dmg;
+            checkTouchOfTheGrave();
           }
           gcdTimer = 1.5;
-        } else if (talents.bloodthirst && btCd <= 0 && rage >= btRageCost) {
-          rage -= btRageCost;
+        } else if (talents.bloodthirst && btCd <= 0 && rage >= btCost) {
+          rage -= btCost;
           btCd = 6.0;
           abilityStats['Bloodthirst'].casts++;
+          if (eurekaActive) eurekaCharges--;
           const roll = rng.next();
           if (roll < yellowMissChance) {
             abilityStats['Bloodthirst'].misses++;
           } else if (roll < yellowMissChance + yellowDodgeChance) {
             abilityStats['Bloodthirst'].dodges++;
             overpowerAvailableUntil = time + 5.0;
-            rage += Math.round(btRageCost * 0.8);
+            rage = Math.min(maxRage, rage + Math.round(btCost * 0.8));
           } else {
-            const isCrit = rng.next() < (baseCrit / 100.0);
-            let dmg = (currentAp * 0.45) * armorMultiplier;
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            let dmg = (currentAp * 0.45) * armorMultiplier * abilityDmgMult;
             if (isCrit) {
               dmg *= 2.0;
               abilityStats['Bloodthirst'].crits++;
@@ -510,24 +584,26 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             }
             fightDamage += dmg;
             abilityStats['Bloodthirst'].damage += dmg;
+            checkTouchOfTheGrave();
           }
           gcdTimer = 1.5;
-        } else if (wwCd <= 0 && rage >= wwRageCost) {
-          rage -= wwRageCost;
+        } else if (wwCd <= 0 && rage >= wwCost) {
+          rage -= wwCost;
           wwCd = 10.0;
           abilityStats['Whirlwind'].casts++;
+          if (eurekaActive) eurekaCharges--;
           const roll = rng.next();
           if (roll < yellowMissChance) {
             abilityStats['Whirlwind'].misses++;
           } else if (roll < yellowMissChance + yellowDodgeChance) {
             abilityStats['Whirlwind'].dodges++;
             overpowerAvailableUntil = time + 5.0;
-            rage += Math.round(wwRageCost * 0.8);
+            rage = Math.min(maxRage, rage + Math.round(wwCost * 0.8));
           } else {
-            const isCrit = rng.next() < (baseCrit / 100.0);
+            const isCrit = rng.next() < (currentCrit / 100.0);
             const weaponNormSpeed = 2.4;
             const avgDmg = (mhMinDmg + mhMaxDmg) / 2 + (currentAp / 14) * weaponNormSpeed;
-            let dmg = avgDmg * armorMultiplier;
+            let dmg = avgDmg * armorMultiplier * abilityDmgMult;
             if (isCrit) {
               dmg *= 2.0;
               abilityStats['Whirlwind'].crits++;
@@ -540,6 +616,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             }
             fightDamage += dmg;
             abilityStats['Whirlwind'].damage += dmg;
+            checkTouchOfTheGrave();
           }
           gcdTimer = 1.5;
         }
@@ -554,9 +631,12 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
       // Main Hand Swing
       if (mhTimer <= 0) {
         abilityStats['Auto-Attack (MH)'].casts++;
-        if (hsQueued && rage >= 12) {
-          rage -= 12;
+        const hsBaseCost = 15 - (talents.improvedHeroicStrike || 0);
+        const hsCost = Math.max(0, hsBaseCost - abilityCostDiscount);
+        if (hsQueued && rage >= hsCost) {
+          rage -= hsCost;
           abilityStats['Heroic Strike'].casts++;
+          if (eurekaActive) eurekaCharges--;
           const roll = rng.next();
           if (roll < yellowMissChance) {
             abilityStats['Heroic Strike'].misses++;
@@ -564,9 +644,9 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             abilityStats['Heroic Strike'].dodges++;
             overpowerAvailableUntil = time + 5.0;
           } else {
-            const isCrit = rng.next() < (baseCrit / 100.0);
+            const isCrit = rng.next() < (currentCrit / 100.0);
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed + 138;
-            let dmg = rawDmg * armorMultiplier;
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult;
             if (isCrit) {
               dmg *= 2.0;
               abilityStats['Heroic Strike'].crits++;
@@ -576,6 +656,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             }
             fightDamage += dmg;
             abilityStats['Heroic Strike'].damage += dmg;
+            checkTouchOfTheGrave();
           }
         } else {
           const roll = rng.next();
@@ -590,11 +671,12 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             const dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
+            checkTouchOfTheGrave();
             const generatedRage = Math.min(50, (dmg / 30.0) * 3.75);
-            rage = Math.min(100, rage + generatedRage);
+            rage = Math.min(maxRage, rage + generatedRage);
           } else {
             const whiteCritCap = Math.max(0, 1.0 - (mhWhiteMiss + yellowDodgeChance + glancingChance));
-            const effectiveCrit = Math.min(whiteCritCap, baseCrit / 100.0);
+            const effectiveCrit = Math.min(whiteCritCap, currentCrit / 100.0);
             const isCrit = rng.next() < effectiveCrit;
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
             let dmg = rawDmg * armorMultiplier;
@@ -603,21 +685,23 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
               abilityStats['Auto-Attack (MH)'].crits++;
               flurryCharges = 3;
               const generatedRage = Math.min(75, ((dmg / 2) / 30.0) * 3.75 * 2.0);
-              rage = Math.min(100, rage + generatedRage);
+              rage = Math.min(maxRage, rage + generatedRage);
             } else {
               abilityStats['Auto-Attack (MH)'].hits++;
               const generatedRage = Math.min(50, (dmg / 30.0) * 3.75);
-              rage = Math.min(100, rage + generatedRage);
+              rage = Math.min(maxRage, rage + generatedRage);
             }
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
+            checkTouchOfTheGrave();
           }
         }
 
         if (buffs.windfuryTotem && rng.next() < 0.20) {
           const wfDmg = ((mhMinDmg + mhMaxDmg) / 2 + ((currentAp + 315) / 14) * mhSpeed) * armorMultiplier;
           fightDamage += wfDmg;
-          rage = Math.min(100, rage + 15);
+          checkTouchOfTheGrave();
+          rage = Math.min(maxRage, rage + 15);
         }
         if (rng.next() < (mhSpeed / 60.0)) {
           crusaderMhActiveUntil = time + 15.0;
@@ -642,11 +726,12 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
           const dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
+          checkTouchOfTheGrave();
           const generatedRage = Math.min(30, (dmg / 30.0) * 3.75 * 0.5);
-          rage = Math.min(100, rage + generatedRage);
+          rage = Math.min(maxRage, rage + generatedRage);
         } else {
           const ohCritCap = Math.max(0, 1.0 - (ohWhiteMiss + yellowDodgeChance + glancingChance));
-          const effectiveCrit = Math.min(ohCritCap, baseCrit / 100.0);
+          const effectiveCrit = Math.min(ohCritCap, currentCrit / 100.0);
           const isCrit = rng.next() < effectiveCrit;
           const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
           let dmg = rawDmg * armorMultiplier;
@@ -655,14 +740,15 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
             abilityStats['Auto-Attack (OH)'].crits++;
             flurryCharges = 3;
             const generatedRage = Math.min(45, ((dmg / 2) / 30.0) * 3.75 * 0.5 * 2.0);
-            rage = Math.min(100, rage + generatedRage);
+            rage = Math.min(maxRage, rage + generatedRage);
           } else {
             abilityStats['Auto-Attack (OH)'].hits++;
             const generatedRage = Math.min(30, (dmg / 30.0) * 3.75 * 0.5);
-            rage = Math.min(100, rage + generatedRage);
+            rage = Math.min(maxRage, rage + generatedRage);
           }
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
+          checkTouchOfTheGrave();
         }
 
         if (rng.next() < (ohSpeed / 60.0)) {
@@ -679,6 +765,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
       if (gcdTimer > 0) gcdTimer -= timeStep;
       if (btCd > 0) btCd -= timeStep;
       if (wwCd > 0) wwCd -= timeStep;
+      if (racialCd > 0) racialCd -= timeStep;
     }
 
     const fightDps = fightDamage / duration;
@@ -741,6 +828,18 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
   }
 
   const executionTimeMs = Math.round(performance.now() - t0);
+  const totalFightTime = duration * iterations;
+  const procUptimes: Record<string, number> = {};
+  if (totalFightTime > 0) {
+    if (totalBloodFuryTime > 0) procUptimes['Blood Fury'] = +((totalBloodFuryTime / totalFightTime) * 100).toFixed(1);
+    if (totalBerserkingTime > 0) procUptimes['Berserking'] = +((totalBerserkingTime / totalFightTime) * 100).toFixed(1);
+    if (totalElunesLightTime > 0) procUptimes["Elune's Light"] = +((totalElunesLightTime / totalFightTime) * 100).toFixed(1);
+    if (totalEurekaTime > 0) procUptimes['Eureka!'] = +((totalEurekaTime / totalFightTime) * 100).toFixed(1);
+    if (totalCrusaderMhTime > 0) procUptimes['Crusader (MH)'] = +((totalCrusaderMhTime / totalFightTime) * 100).toFixed(1);
+    if (totalCrusaderOhTime > 0) procUptimes['Crusader (OH)'] = +((totalCrusaderOhTime / totalFightTime) * 100).toFixed(1);
+    if (totalDeathWishTime > 0) procUptimes['Death Wish'] = +((totalDeathWishTime / totalFightTime) * 100).toFixed(1);
+    if (totalFlurryTime > 0) procUptimes['Flurry'] = +((totalFlurryTime / totalFightTime) * 100).toFixed(1);
+  }
 
   return {
     meanDps: +totalDps.toFixed(1),
@@ -752,7 +851,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     stdDev: +stdDev.toFixed(1),
     errorMargin: +(stdDev / Math.sqrt(iterations) * 1.96).toFixed(1),
     meanRps: 18.5,
-    flurryUptimePct: 78.5,
+    flurryUptimePct: procUptimes['Flurry'] ?? 78.5,
     goreDrinkerHealsPerMin: 14.2,
     elapsedMs: executionTimeMs,
     executionTimeMs,
@@ -762,6 +861,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     stats,
     abilities,
     dpsHistogram,
+    procUptimes: Object.keys(procUptimes).length > 0 ? procUptimes : undefined,
   };
 }
 

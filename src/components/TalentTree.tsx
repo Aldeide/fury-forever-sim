@@ -60,24 +60,24 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
   const treeNodes = TALENT_NODES.filter((n) => n.tree === activeTab);
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col h-full overflow-y-auto">
+    <div className="bg-[#191c20] border border-[#44474e]/30 rounded-2xl p-4 shadow-sm flex flex-col h-full overflow-y-auto">
       {/* Baseline Passives Banner */}
-      <div className="bg-gradient-to-r from-amber-950/60 via-slate-900 to-amber-950/40 border border-amber-500/40 rounded-xl p-3 mb-4 shadow-lg flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-[#1d2024] border border-[#a8c7fa]/30 rounded-2xl p-4 mb-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-500/20 border border-amber-500/60 flex items-center justify-center text-amber-400">
+          <div className="w-10 h-10 rounded-2xl bg-[#284777] text-[#a8c7fa] flex items-center justify-center shrink-0 border border-[#a8c7fa]/30">
             <Award className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-300">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#d6e3ff]">
                 WoW: Forever Baseline Warrior Passives
               </span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-bold uppercase tracking-wider">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#0f5223] text-[#81c995] border border-[#81c995]/30 font-semibold uppercase tracking-wider">
                 Active Baseline
               </span>
             </div>
-            <div className="text-xs text-slate-300 mt-0.5">
-              <span className="text-amber-400 font-semibold">Tactical Mastery:</span> Retain 10 Rage baseline across all stance swaps &bull; <span className="text-amber-400 font-semibold">Victory Rush:</span> Available upon slaying any experience/honor-yielding target.
+            <div className="text-xs text-[#c4c6d0] mt-0.5">
+              <span className="text-[#a8c7fa] font-semibold">Tactical Mastery:</span> Retain 10 Rage baseline across all stance swaps &bull; <span className="text-[#a8c7fa] font-semibold">Victory Rush:</span> Available upon slaying any experience/honor-yielding target.
             </div>
           </div>
         </div>
@@ -86,19 +86,19 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onChange(DEFAULT_TALENTS_17_34)}
-            className="px-2.5 py-1 text-xs font-semibold rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#284777] hover:bg-[#34588e] text-[#d6e3ff] border border-[#a8c7fa]/40 transition-all shadow-sm"
           >
             Load 17/34 DW Fury
           </button>
           <button
             onClick={() => onChange(DEFAULT_TALENTS_2H)}
-            className="px-2.5 py-1 text-xs font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+            className="px-3 py-1.5 text-xs font-semibold rounded-full bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] border border-[#44474e]/40 transition-all"
           >
             Load 20/31 2H Fury
           </button>
           <button
             onClick={resetAllTalents}
-            className="p-1 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition-colors"
+            className="p-2 text-[#8e9099] hover:text-[#f28b82] rounded-full hover:bg-[#111318] transition-all"
             title="Reset All Talents"
           >
             <RotateCcw className="w-4 h-4" />
@@ -107,35 +107,35 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
       </div>
 
       {/* Talent Points Counter & Tree Navigation Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-4 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-4 border-b border-[#44474e]/30">
         {/* Tree Selector Tabs */}
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+        <div className="flex bg-[#111318] p-1 rounded-full border border-[#44474e]/40">
           <button
             onClick={() => setActiveTab('arms')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'arms'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                : 'text-[#8e9099] hover:text-[#e2e2e9]'
             }`}
           >
             Arms ({points.arms})
           </button>
           <button
             onClick={() => setActiveTab('fury')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'fury'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                : 'text-[#8e9099] hover:text-[#e2e2e9]'
             }`}
           >
             Fury ({points.fury})
           </button>
           <button
             onClick={() => setActiveTab('protection')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all ${
               activeTab === 'protection'
-                ? 'bg-amber-500 text-slate-950 shadow'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                : 'text-[#8e9099] hover:text-[#e2e2e9]'
             }`}
           >
             Protection ({points.protection})
@@ -149,10 +149,10 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
             <span
               className={`font-bold ${
                 remainingPoints === 0
-                  ? 'text-emerald-400'
+                  ? 'text-[#81c995]'
                   : remainingPoints < 0
-                  ? 'text-red-400'
-                  : 'text-amber-400'
+                  ? 'text-[#f28b82]'
+                  : 'text-[#a8c7fa]'
               }`}
             >
               {remainingPoints} / 51
@@ -161,7 +161,7 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
 
           <button
             onClick={resetCurrentTree}
-            className="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700"
+            className="text-[11px] px-3 py-1 rounded-full bg-[#1d2024] hover:bg-[#282a2f] text-[#8e9099] hover:text-[#e2e2e9] border border-[#44474e]/40 transition-all"
           >
             Reset {activeTab}
           </button>
@@ -169,24 +169,22 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
       </div>
 
       {/* 7-Row x 4-Col Interactive Talent Tree Grid */}
-      <div className="flex-1 bg-slate-950/70 border border-slate-800 rounded-xl p-4 overflow-y-auto">
-        <div className="grid grid-rows-7 gap-4 min-w-[500px]">
+      <div className="flex-1 bg-[#111318]/70 border border-[#44474e]/30 rounded-2xl p-4 overflow-y-auto">
+        <div className="grid grid-rows-7 gap-3.5 min-w-[500px]">
           {[1, 2, 3, 4, 5, 6, 7].map((rowNum) => {
             return (
-              <div key={rowNum} className="grid grid-cols-4 gap-4 items-center">
+              <div key={rowNum} className="grid grid-cols-4 gap-3.5 items-center">
                 {[1, 2, 3, 4].map((colNum) => {
                   const node = treeNodes.find((n) => n.row === rowNum && n.col === colNum);
 
                   if (!node) {
-                    return <div key={colNum} className="h-16" />;
+                    return <div key={colNum} className="h-20" />;
                   }
 
                   const rank = Number(talents[node.id] || 0);
                   const isMaxed = rank === node.maxRank;
                   const isAllocated = rank > 0;
                   const isForeverNew = FOREVER_NEW_TALENT_IDS.has(node.id);
-                  const isDeathWish = node.id === 'deathWish';
-                  const isFlurry = node.id === 'flurry';
 
                   const desc =
                     rank > 0
@@ -200,103 +198,74 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
                       key={colNum}
                       onContextMenu={(e) => handleRemovePoint(node, e)}
                       onClick={(e) => handleAddPoint(node, e)}
-                      className={`relative group h-20 p-2 rounded-lg border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                      className={`relative group h-20 p-2.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
                         isMaxed
-                          ? 'bg-amber-950/30 border-amber-400/80 ring-1 ring-amber-400/50 shadow-md shadow-amber-950/40'
+                          ? 'bg-[#0f5223]/20 border-[#81c995]/70 ring-1 ring-[#81c995]/40 shadow-sm'
                           : isAllocated
-                          ? 'bg-slate-800/80 border-emerald-500/80 ring-1 ring-emerald-500/30'
-                          : 'bg-slate-900/50 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                          ? 'bg-[#284777]/30 border-[#a8c7fa]/70 ring-1 ring-[#a8c7fa]/30'
+                          : 'bg-[#191c20] border-[#44474e]/30 hover:border-[#44474e]/60 hover:bg-[#282a2f]/40'
                       }`}
                     >
                       {/* Top Row: Name & New Badge */}
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-1">
                         <span
                           className={`text-xs font-semibold leading-tight line-clamp-1 ${
                             isMaxed
-                              ? 'text-amber-300'
+                              ? 'text-[#81c995]'
                               : isAllocated
-                              ? 'text-emerald-300'
-                              : 'text-slate-300'
+                              ? 'text-[#d6e3ff]'
+                              : 'text-[#c4c6d0]'
                           }`}
                         >
                           {node.name}
                         </span>
 
                         {isForeverNew && (
-                          <span className="shrink-0 ml-1 px-1 py-0.2 rounded bg-amber-500 text-slate-950 font-bold text-[8px] uppercase tracking-wider animate-pulse">
-                            Forever New
+                          <span className="shrink-0 text-[8px] font-mono uppercase px-1 py-0.2 rounded-full bg-[#4f378b] text-[#eddcff]">
+                            New
                           </span>
                         )}
                       </div>
 
-                      {/* Death Wish -> Flurry Visual Connector Link */}
-                      {isDeathWish && (
-                        <div className="text-[9px] text-amber-400 font-mono flex items-center space-x-1">
-                          <span>Prereq for Flurry</span>
-                          <ArrowDown className="w-2.5 h-2.5 animate-bounce" />
-                        </div>
-                      )}
-                      {isFlurry && (
-                        <div className="text-[9px] text-amber-400/80 font-mono flex items-center space-x-0.5">
-                          <span>Requires Death Wish</span>
-                        </div>
-                      )}
-
-                      {/* Bottom Row: Rank Counter & Controls */}
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 mt-1">
+                      {/* Bottom Row: Rank Indicator */}
+                      <div className="flex items-center justify-between mt-auto pt-1">
                         <span
-                          className={`text-xs font-mono font-bold ${
+                          className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
                             isMaxed
-                              ? 'text-amber-400'
+                              ? 'bg-[#0f5223] text-[#81c995] border border-[#81c995]/40'
                               : isAllocated
-                              ? 'text-emerald-400'
-                              : 'text-slate-500'
+                              ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40'
+                              : 'bg-[#111318] text-[#8e9099]'
                           }`}
                         >
-                          {rank}/{node.maxRank}
+                          {rank} / {node.maxRank}
                         </span>
 
-                        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemovePoint(node);
-                            }}
-                            disabled={rank === 0}
-                            className="w-5 h-5 rounded bg-slate-800 hover:bg-red-900/80 text-slate-300 hover:text-red-300 text-xs flex items-center justify-center border border-slate-700"
-                          >
-                            -
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddPoint(node);
-                            }}
-                            disabled={rank >= node.maxRank || remainingPoints <= 0}
-                            className="w-5 h-5 rounded bg-amber-600/80 hover:bg-amber-500 text-slate-950 text-xs font-bold flex items-center justify-center shadow"
-                          >
-                            +
-                          </button>
-                        </div>
+                        <span className="text-[10px] text-[#8e9099] opacity-0 group-hover:opacity-100 transition-opacity">
+                          L-Click + &bull; R-Click -
+                        </span>
                       </div>
 
                       {/* Tooltip on Hover */}
-                      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-2.5 bg-slate-950 border border-slate-700 rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity z-30 text-left">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-1 mb-1.5">
-                          <span className="text-xs font-bold text-amber-300">{node.name}</span>
-                          <span className="text-[10px] font-mono text-slate-400">
+                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-3 bg-[#111318] border border-[#44474e]/60 rounded-xl shadow-xl pointer-events-none text-left">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-[#e2e2e9]">{node.name}</span>
+                          <span className="text-[10px] font-mono text-[#a8c7fa]">
                             Rank {rank}/{node.maxRank}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-200">{desc}</div>
+                        <div className="text-[11px] text-[#c4c6d0] leading-snug">{desc}</div>
+
                         {nextDesc && (
-                          <div className="mt-1.5 pt-1.5 border-t border-slate-800 text-[10px] text-slate-400">
-                            <span className="text-amber-400/80">Next Rank:</span> {nextDesc}
+                          <div className="mt-2 pt-1.5 border-t border-[#44474e]/30">
+                            <div className="text-[10px] font-bold text-[#8e9099] uppercase">
+                              Next Rank:
+                            </div>
+                            <div className="text-[11px] text-[#8e9099] leading-snug">
+                              {nextDesc}
+                            </div>
                           </div>
                         )}
-                        <div className="mt-1.5 text-[9px] text-slate-500 italic">
-                          Left-click to add, right-click to remove.
-                        </div>
                       </div>
                     </div>
                   );

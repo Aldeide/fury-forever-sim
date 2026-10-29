@@ -32,21 +32,21 @@ interface SlotTableProps {
 }
 
 const QUALITY_TEXT_COLORS: Record<ItemQuality, string> = {
-  legendary: 'text-amber-400 font-semibold',
-  epic: 'text-purple-400 font-semibold',
-  rare: 'text-blue-400 font-medium',
-  uncommon: 'text-emerald-400',
-  common: 'text-slate-200',
-  poor: 'text-neutral-400',
+  legendary: 'text-[#ff8000] font-semibold',
+  epic: 'text-[#a335ee] font-semibold',
+  rare: 'text-[#0070dd] font-medium',
+  uncommon: 'text-[#1eff00]',
+  common: 'text-[#e2e2e9]',
+  poor: 'text-[#8e9099]',
 };
 
 const QUALITY_BORDER_COLORS: Record<ItemQuality, string> = {
-  legendary: 'border-amber-500',
-  epic: 'border-purple-500',
-  rare: 'border-blue-500',
-  uncommon: 'border-emerald-500',
-  common: 'border-slate-600',
-  poor: 'border-neutral-600',
+  legendary: 'border-[#ff8000]/60',
+  epic: 'border-[#a335ee]/60',
+  rare: 'border-[#0070dd]/60',
+  uncommon: 'border-[#1eff00]/60',
+  common: 'border-[#44474e]/50',
+  poor: 'border-[#44474e]/30',
 };
 
 export const SlotTable: React.FC<SlotTableProps> = ({
@@ -129,30 +129,34 @@ export const SlotTable: React.FC<SlotTableProps> = ({
     }
   };
 
-  const isWeaponSlot = selectedSlot === 'mainhand' || selectedSlot === 'offhand' || selectedSlot === 'twohand' || selectedSlot === 'ranged';
+  const isWeaponSlot =
+    selectedSlot === 'mainhand' ||
+    selectedSlot === 'offhand' ||
+    selectedSlot === 'twohand' ||
+    selectedSlot === 'ranged';
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col h-full">
+    <div className="bg-[#191c20] border border-[#44474e]/30 rounded-2xl p-4 shadow-sm flex flex-col h-full">
       {/* Top Action Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <div className="flex bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[#44474e]/30">
+        <div className="flex items-center space-x-2.5">
+          <div className="flex bg-[#111318] p-1 rounded-full border border-[#44474e]/40">
             <button
               onClick={() => setActiveTab('items')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all ${
                 activeTab === 'items'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9]'
               }`}
             >
               Equipment ({availableItems.length})
             </button>
             <button
               onClick={() => setActiveTab('enchants')}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider flex items-center transition-colors ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center transition-all ${
                 activeTab === 'enchants'
-                  ? 'bg-amber-500 text-slate-950 shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9]'
               }`}
             >
               <Sparkles className="w-3 h-3 mr-1" />
@@ -160,32 +164,32 @@ export const SlotTable: React.FC<SlotTableProps> = ({
             </button>
           </div>
 
-          <span className="text-xs font-mono text-slate-400 uppercase tracking-widest pl-2">
-            Slot: <span className="text-amber-400 font-bold">{selectedSlot}</span>
+          <span className="text-xs font-mono text-[#8e9099] uppercase tracking-widest pl-1">
+            Slot: <span className="text-[#a8c7fa] font-bold">{selectedSlot}</span>
           </span>
         </div>
 
-        {/* Guybrush-Style Batch Simulate Button */}
+        {/* Batch Simulate Button & Custom Item */}
         <div className="flex items-center space-x-2">
           <button
             onClick={() => onSimulateAllInSlot(selectedSlot, availableItems)}
             disabled={isSimulating || availableItems.length === 0}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg transition-all ${
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm transition-all ${
               isSimulating
-                ? 'bg-amber-600/50 text-slate-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-950/40 hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-[#284777]/50 text-[#8e9099] cursor-not-allowed'
+                : 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#062e6f] hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >
-            <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-pulse' : 'text-slate-950 fill-current'}`} />
-            <span>{isSimulating ? 'Simulating Batch...' : '⚡ Simulate All in Slot'}</span>
+            <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-pulse' : 'text-[#062e6f] fill-current'}`} />
+            <span>{isSimulating ? 'Simulating...' : 'Simulate All in Slot'}</span>
           </button>
 
           <button
             onClick={onOpenCustomItemModal}
-            className="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-amber-300 transition-colors"
+            className="flex items-center space-x-1 px-3 py-2 rounded-full text-xs font-medium border border-[#44474e]/50 bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] hover:text-[#e2e2e9] transition-all"
             title="Create Custom Item"
           >
-            <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+            <PlusCircle className="w-3.5 h-3.5 text-[#a8c7fa]" />
             <span className="hidden sm:inline">Custom Item</span>
           </button>
         </div>
@@ -193,16 +197,16 @@ export const SlotTable: React.FC<SlotTableProps> = ({
 
       {/* Progress Bar during Batch Simulation */}
       {isSimulating && simulationProgress && (
-        <div className="mb-3 bg-slate-950 border border-amber-500/40 rounded-lg p-2.5 animate-pulse">
-          <div className="flex justify-between text-xs font-mono mb-1 text-amber-300">
-            <span>Evaluating Candidate Items...</span>
+        <div className="mb-3 bg-[#111318] border border-[#a8c7fa]/40 rounded-xl p-2.5 shadow-sm animate-pulse">
+          <div className="flex justify-between text-xs font-mono mb-1 text-[#d6e3ff]">
+            <span>Evaluating Candidate Items in Slot...</span>
             <span>
               {simulationProgress.completed} / {simulationProgress.total} ({simulationProgress.pct}%)
             </span>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-[#1d2024] rounded-full h-1.5 overflow-hidden">
             <div
-              className="bg-amber-400 h-1.5 rounded-full transition-all duration-150"
+              className="bg-[#a8c7fa] h-1.5 rounded-full transition-all duration-150"
               style={{ width: `${simulationProgress.pct}%` }}
             />
           </div>
@@ -212,22 +216,22 @@ export const SlotTable: React.FC<SlotTableProps> = ({
       {/* Search and Filters Bar */}
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <div className="relative flex-1 min-w-[160px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#8e9099] absolute left-3 top-2.5" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search item name, source, stats..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500 font-mono"
+            className="w-full bg-[#111318] border border-[#44474e]/40 rounded-full pl-8 pr-3 py-1.5 text-xs text-[#e2e2e9] placeholder-[#8e9099] focus:outline-none focus:border-[#a8c7fa] font-mono transition-all"
           />
         </div>
 
-        <div className="flex items-center space-x-1">
-          <Filter className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center space-x-1.5">
+          <Filter className="w-3.5 h-3.5 text-[#8e9099]" />
           <select
             value={phaseFilter}
             onChange={(e) => setPhaseFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:border-amber-500"
+            className="bg-[#111318] border border-[#44474e]/40 text-[#c4c6d0] text-xs rounded-full px-3 py-1.5 focus:outline-none focus:border-[#a8c7fa] cursor-pointer"
           >
             <option value="all">All Content Phases</option>
             <option value="WoW: Forever">WoW: Forever (Nov 4 Launch)</option>
@@ -240,15 +244,15 @@ export const SlotTable: React.FC<SlotTableProps> = ({
       </div>
 
       {/* Main Table Content */}
-      <div className="flex-1 overflow-y-auto border border-slate-800 rounded-lg bg-slate-950/60">
+      <div className="flex-1 overflow-y-auto border border-[#44474e]/30 rounded-xl bg-[#111318]/60">
         {activeTab === 'items' ? (
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-slate-800">
+            <thead className="bg-[#191c20] text-[#8e9099] uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-[#44474e]/40 font-mono">
               <tr>
                 <th className="p-2 w-8 text-center">Status</th>
                 <th
                   onClick={() => toggleSort('name')}
-                  className="p-2 cursor-pointer hover:text-amber-300 transition-colors"
+                  className="p-2 cursor-pointer hover:text-[#a8c7fa] transition-colors"
                 >
                   <div className="flex items-center space-x-1">
                     <span>Item Name</span>
@@ -259,44 +263,44 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                 {isWeaponSlot && <th className="p-2">Speed / DPS</th>}
                 <th
                   onClick={() => toggleSort('str')}
-                  className="p-2 cursor-pointer hover:text-amber-300 text-right"
+                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
                 >
                   Str
                 </th>
                 <th className="p-2 text-right">Agi</th>
                 <th
                   onClick={() => toggleSort('ap')}
-                  className="p-2 cursor-pointer hover:text-amber-300 text-right"
+                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
                 >
                   AP
                 </th>
                 <th
                   onClick={() => toggleSort('crit')}
-                  className="p-2 cursor-pointer hover:text-amber-300 text-right"
+                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
                 >
                   Crit
                 </th>
                 <th className="p-2 text-right">Hit</th>
-                <th className="p-2 text-right text-amber-400" title="WoW: Forever Off-Hand Hit">
+                <th className="p-2 text-right text-[#a8c7fa]" title="WoW: Forever Off-Hand Hit">
                   OH Hit
                 </th>
                 <th className="p-2 text-right">Haste</th>
                 <th
                   onClick={() => toggleSort('simDps')}
-                  className="p-2 cursor-pointer hover:text-amber-300 text-right font-bold text-amber-400 bg-amber-950/20"
+                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right font-bold text-[#a8c7fa] bg-[#284777]/20"
                 >
                   <div className="flex items-center justify-end space-x-1">
-                    <span>⚡ SIM DPS</span>
-                    <ArrowUpDown className="w-3 h-3 text-amber-400" />
+                    <span>SIM DPS</span>
+                    <ArrowUpDown className="w-3 h-3 text-[#a8c7fa]" />
                   </div>
                 </th>
                 <th className="p-2 text-right pr-4 font-bold">Δ DPS (BiS)</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-[#44474e]/20">
               {sortedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="p-6 text-center text-slate-500 italic">
+                  <td colSpan={13} className="p-6 text-center text-[#8e9099] italic">
                     No items found for slot &quot;{selectedSlot}&quot; with active filters.
                   </td>
                 </tr>
@@ -314,15 +318,15 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                     <tr
                       key={item.id}
                       onClick={() => onEquipItem(selectedSlot, item)}
-                      className={`cursor-pointer transition-colors hover:bg-slate-800/60 ${
-                        isEquipped ? 'bg-amber-950/25 border-l-2 border-l-amber-500' : ''
+                      className={`cursor-pointer transition-colors hover:bg-[#282a2f]/40 ${
+                        isEquipped ? 'bg-[#284777]/20 border-l-2 border-l-[#a8c7fa]' : ''
                       }`}
                     >
                       <td className="p-2 text-center">
                         {isEquipped ? (
                           <span
                             title="Equipped"
-                            className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/50"
+                            className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#284777] text-[#a8c7fa] border border-[#a8c7fa]/40"
                           >
                             <Check className="w-3 h-3" />
                           </span>
@@ -334,7 +338,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                       <td className="p-2">
                         <div className="flex items-center space-x-2">
                           <div
-                            className={`w-6 h-6 rounded border flex items-center justify-center shrink-0 text-[10px] bg-slate-900 ${
+                            className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 text-[10px] bg-[#111318] ${
                               QUALITY_BORDER_COLORS[quality]
                             }`}
                           >
@@ -342,7 +346,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                               <img
                                 src={item.icon}
                                 alt={item.name}
-                                className="w-full h-full object-cover rounded"
+                                className="w-full h-full object-cover rounded-md"
                                 onError={(e) => {
                                   (e.target as HTMLElement).style.display = 'none';
                                 }}
@@ -354,7 +358,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                           <div>
                             <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
                             {item.isCustom && (
-                              <span className="ml-1.5 px-1 py-0.2 text-[9px] rounded bg-purple-900/60 text-purple-300 font-mono">
+                              <span className="ml-1.5 px-1.5 py-0.2 text-[9px] rounded-full bg-[#4f378b] text-[#eddcff] font-mono">
                                 Custom
                               </span>
                             )}
@@ -363,59 +367,59 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                       </td>
 
                       <td className="p-2 hidden md:table-cell">
-                        <div className="text-[11px] text-slate-400 truncate max-w-[140px]">
+                        <div className="text-[11px] text-[#8e9099] truncate max-w-[140px]">
                           {item.source || '-'}
                         </div>
                         {item.phase && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-800 text-amber-300/80 font-mono">
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#1d2024] text-[#a8c7fa] font-mono border border-[#44474e]/30">
                             {item.phase}
                           </span>
                         )}
                       </td>
 
                       {isWeaponSlot && (
-                        <td className="p-2 font-mono text-[11px] text-slate-300">
+                        <td className="p-2 font-mono text-[11px] text-[#c4c6d0]">
                           {item.speed ? `${item.speed}s • ${item.dps} DPS` : '-'}
                         </td>
                       )}
 
-                      <td className="p-2 text-right font-mono text-slate-300">
+                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
                         {item.str ? `+${item.str}` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-slate-300">
+                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
                         {item.agi ? `+${item.agi}` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-slate-300">
+                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
                         {item.ap ? `+${item.ap}` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-amber-400">
+                      <td className="p-2 text-right font-mono text-[#81c995]">
                         {item.crit ? `+${item.crit}%` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-slate-300">
+                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
                         {item.hit ? `+${item.hit}%` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-amber-300 font-bold">
+                      <td className="p-2 text-right font-mono text-[#a8c7fa] font-bold">
                         {item.ohHit ? `+${item.ohHit}%` : '-'}
                       </td>
-                      <td className="p-2 text-right font-mono text-slate-300">
+                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
                         {item.haste ? `+${item.haste}%` : '-'}
                       </td>
 
-                      <td className="p-2 text-right font-mono font-bold text-amber-400 bg-amber-950/10">
+                      <td className="p-2 text-right font-mono font-bold text-[#a8c7fa] bg-[#284777]/10">
                         {batch ? dpsVal.toFixed(1) : '-'}
                       </td>
 
                       <td className="p-2 text-right pr-4">
                         {isEquipped ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40">
                             Equipped
                           </span>
                         ) : batch ? (
                           <div className="flex items-center justify-end space-x-1.5">
-                            <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden sm:block">
+                            <div className="w-12 h-1.5 bg-[#1d2024] rounded-full overflow-hidden hidden sm:block">
                               <div
                                 className={`h-full rounded-full ${
-                                  isUpgrade ? 'bg-emerald-400' : 'bg-red-400'
+                                  isUpgrade ? 'bg-[#81c995]' : 'bg-[#f28b82]'
                                 }`}
                                 style={{
                                   width: `${Math.min(100, (Math.abs(dpsDelta) / maxAbsDelta) * 100)}%`,
@@ -423,19 +427,19 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                               />
                             </div>
                             <span
-                              className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-bold ${
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
                                 isUpgrade
-                                  ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-500/40'
+                                  ? 'bg-[#0f5223] text-[#81c995] border border-[#81c995]/40'
                                   : isDowngrade
-                                  ? 'bg-red-950/80 text-red-300 border border-red-500/40'
-                                  : 'text-slate-400'
+                                  ? 'bg-[#8c1d18] text-[#f28b82] border border-[#f28b82]/40'
+                                  : 'text-[#8e9099]'
                               }`}
                             >
                               {dpsDelta > 0 ? `+${dpsDelta}` : dpsDelta}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-slate-600 font-mono text-[11px]">-</span>
+                          <span className="text-[#8e9099] font-mono text-[11px]">-</span>
                         )}
                       </td>
                     </tr>
@@ -447,7 +451,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
         ) : (
           <div className="p-3 space-y-2">
             {availableEnchants.length === 0 ? (
-              <div className="p-6 text-center text-slate-500 italic">
+              <div className="p-6 text-center text-[#8e9099] italic">
                 No enchants available for {selectedSlot}.
               </div>
             ) : (
@@ -457,19 +461,19 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                   <div
                     key={ench.id}
                     onClick={() => onApplyEnchant(selectedSlot, ench)}
-                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
                       isEquippedEnchant
-                        ? 'bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500'
-                        : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/60'
+                        ? 'bg-[#0f5223]/30 border-[#81c995]/80 ring-1 ring-[#81c995]'
+                        : 'bg-[#191c20] border-[#44474e]/30 hover:border-[#44474e]/70 hover:bg-[#282a2f]/50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-950/40 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                      <div className="w-8 h-8 rounded-lg bg-[#0f5223]/40 border border-[#81c995]/40 flex items-center justify-center text-[#81c995]">
                         <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="text-sm font-semibold text-emerald-300">{ench.name}</div>
-                        <div className="text-xs text-slate-400 font-mono">
+                        <div className="text-sm font-semibold text-[#81c995]">{ench.name}</div>
+                        <div className="text-xs text-[#c4c6d0] font-mono">
                           {ench.description || 'Stat upgrade'}
                         </div>
                       </div>
@@ -477,11 +481,11 @@ export const SlotTable: React.FC<SlotTableProps> = ({
 
                     <div>
                       {isEquippedEnchant ? (
-                        <span className="px-2.5 py-1 rounded text-xs font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/50">
+                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#0f5223] text-[#81c995] border border-[#81c995]/50">
                           Active
                         </span>
                       ) : (
-                        <button className="px-2.5 py-1 rounded text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">
+                        <button className="px-3 py-1 rounded-full text-xs font-medium bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] border border-[#44474e]/40">
                           Apply Enchant
                         </button>
                       )}

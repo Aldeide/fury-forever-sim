@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -96,7 +97,7 @@ pub struct BuffConfig {
     pub annihilator_stacks: u8,     // 0..3 (-200 armor per stack)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RotationConfig {
     pub use_bloodthirst: bool,
@@ -109,12 +110,41 @@ pub struct RotationConfig {
     pub use_hamstring: bool,
     pub hamstring_rage_threshold: f64, // default 70.0
     pub use_execute: bool,
+    pub use_bt_in_execute: bool,    // default true
     pub execute_bt_ap_threshold: f64, // default 2000.0
+    pub execute_rage_pool_threshold: f64, // default 45.0
     pub use_death_wish: bool,
     pub use_recklessness: bool,
     pub use_bloodrage: bool,
     pub use_berserker_rage: bool,
     pub use_trinkets: bool,
+    pub use_racial: bool,           // default true
+}
+
+impl Default for RotationConfig {
+    fn default() -> Self {
+        Self {
+            use_bloodthirst: true,
+            use_whirlwind: true,
+            use_heroic_strike: true,
+            hs_rage_threshold: 45.0,
+            use_cleave: false,
+            use_overpower: true,
+            overpower_max_rage: 35.0,
+            use_hamstring: false,
+            hamstring_rage_threshold: 70.0,
+            use_execute: true,
+            use_bt_in_execute: true,
+            execute_bt_ap_threshold: 2000.0,
+            execute_rage_pool_threshold: 45.0,
+            use_death_wish: true,
+            use_recklessness: true,
+            use_bloodrage: true,
+            use_berserker_rage: true,
+            use_trinkets: true,
+            use_racial: true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
@@ -197,6 +227,7 @@ pub struct SimResult {
     pub sheet: CharacterSheetSummary,
     pub abilities: Vec<AbilityBreakdown>,
     pub dps_histogram: Vec<(u32, u32)>, // (bucket_dps, count)
+    pub proc_uptimes: HashMap<String, f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]

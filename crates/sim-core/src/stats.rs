@@ -142,11 +142,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     if config.buffs.roids {
         buff_str += 25.0;
     }
-    if config.buffs.songflower {
-        buff_str += 15.0;
-        buff_agi += 15.0;
-        buff_crit += 5.0;
-    }
+    // Songflower Serenade is disabled in WoW: Forever raids
     if config.buffs.grace_of_air {
         buff_agi += 77.0;
     }
@@ -155,8 +151,8 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
         buff_crit += 2.0;
     }
 
-    let stat_mult = (if config.buffs.blessing_of_kings { 1.10 } else { 1.0 })
-        * (if config.buffs.spirit_of_zandalar { 1.15 } else { 1.0 });
+    // Spirit of Zandalar is disabled in WoW: Forever raids
+    let stat_mult = if config.buffs.blessing_of_kings { 1.10 } else { 1.0 };
 
     let total_str = (base_str + gear_str + buff_str) * stat_mult;
     let total_agi = (base_agi + gear_agi + buff_agi) * stat_mult;
@@ -164,13 +160,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     // AP from level 60 + Str
     let base_ap = 160.0 + total_str * 2.0;
 
-    if config.buffs.rallying_cry {
-        buff_ap += 140.0;
-        buff_crit += 10.0;
-    }
-    if config.buffs.dire_maul_tribute {
-        buff_ap += 200.0;
-    }
+    // Rallying Cry and Dire Maul Tribute are disabled in WoW: Forever raids
     if config.buffs.trueshot_aura {
         buff_ap += 100.0;
     }
@@ -206,16 +196,26 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
         buff_crit += 2.0;
     }
 
-    let crit_pct = agi_crit + gear_crit + talent_crit + buff_crit;
+    let race_lower = config.race.to_lowercase();
+    let mut racial_crit = 0.0;
+    // Human: Passive Ruthless (+1.0% Crit)
+    if race_lower == "human" {
+        racial_crit += 1.0;
+    }
+
+    let crit_pct = agi_crit + gear_crit + talent_crit + buff_crit + racial_crit;
 
     // Haste
-    if config.buffs.warchiefs_blessing {
-        buff_haste += 15.0;
-    }
+    // Warchief's Blessing is disabled in WoW: Forever raids
     if config.buffs.juju_flurry {
         buff_haste += 3.0;
     }
-    let haste_pct = gear_haste + buff_haste;
+    let mut racial_haste = 0.0;
+    // Skyborne Elf: Passive Wind-Blessed (+2.0% Haste)
+    if race_lower == "skyborne_elf" || race_lower == "skyborne" {
+        racial_haste += 2.0;
+    }
+    let haste_pct = gear_haste + buff_haste + racial_haste;
 
     // Weapons
     let (mh_weapon, oh_weapon_opt) = get_weapons(&config.items, &config.buffs);
@@ -228,14 +228,8 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
         _ => 0.0,
     };
 
-    let mut racial_ws = 0.0;
-    let race_lower = config.race.to_lowercase();
-    let mh_type = mh_weapon.weapon_type.to_lowercase();
-    if race_lower == "human" && (mh_type.contains("sword") || mh_type.contains("mace")) {
-        racial_ws += 5.0;
-    } else if race_lower == "orc" && mh_type.contains("axe") {
-        racial_ws += 5.0;
-    }
+    // Weapon Skill Racials are 100% removed in WoW: Forever
+    let racial_ws = 0.0;
 
     let mh_weapon_skill = 300.0 + talent_ws + racial_ws + gear_weapon_skill;
     let delta = (315.0 - mh_weapon_skill).max(0.0);
@@ -252,14 +246,20 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
         base_yellow_miss
     };
 
-    let mh_hit_pct = gear_hit;
+    let mut racial_hit = 0.0;
+    // Dwarf: Passive Artisan's Precision (+1.0% Hit)
+    if race_lower == "dwarf" {
+        racial_hit += 1.0;
+    }
+
+    let mh_hit_pct = gear_hit + racial_hit;
     let fp_hit = match config.talents.furious_precision {
         1 => 4.0,
         2 => 7.0,
         3..=u8::MAX => 10.0,
         _ => 0.0,
     };
-    let oh_hit_pct = gear_hit + fp_hit + gear_oh_hit;
+    let oh_hit_pct = gear_hit + racial_hit + fp_hit + gear_oh_hit;
 
     let mh_white_miss_pct = (base_white_miss - mh_hit_pct).max(0.0);
     let oh_white_miss_pct = if has_offhand {

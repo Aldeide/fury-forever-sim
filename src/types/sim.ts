@@ -264,12 +264,15 @@ export type RotationConfig = {
   hamstringSpamRageThreshold?: number;
   useExecute?: boolean;
   executePhase?: boolean;
+  useBtInExecute?: boolean;
   executeBtApThreshold?: number;
+  executeRagePoolThreshold?: number;
   useDeathWish?: boolean;
   useRecklessness?: boolean;
   useBloodrage?: boolean;
   useBerserkerRage?: boolean;
   useTrinkets?: boolean;
+  useRacial?: boolean;
   useMightyRagePotion?: boolean;
   mightyRageTime?: number;
   slamWeave?: boolean;
@@ -409,6 +412,7 @@ export type SimResult = {
   stats: CharacterSheetSummary;
   abilities: AbilityBreakdown[];
   dpsHistogram: DpsHistogramBin[];
+  procUptimes?: Record<string, number>;
   timeSeriesDps?: { time: number; dps: number }[];
 } & Record<string, any>;
 

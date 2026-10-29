@@ -17,7 +17,7 @@ import { PaperDoll } from './components/PaperDoll';
 import { SlotTable } from './components/SlotTable';
 import { StatsSidebar } from './components/StatsSidebar';
 import { TalentTree } from './components/TalentTree';
-import { BuffsPanel } from './components/BuffsPanel';
+import { BuffsPanel, WOW_FOREVER_RACES } from './components/BuffsPanel';
 import { RotationPanel } from './components/RotationPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { CustomItemModal } from './components/CustomItemModal';
@@ -52,6 +52,8 @@ import {
   BarChart3,
   Sliders,
   Award,
+  ChevronDown,
+  Users,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -124,8 +126,20 @@ export const App: React.FC = () => {
   // Talents
   const [talents, setTalents] = useState<TalentConfig>(defaultPreset.talents || DEFAULT_TALENTS_17_34);
 
-  // Buffs
-  const [buffs, setBuffs] = useState<BuffConfig>(defaultPreset.buffs || DEFAULT_BUFF_CONFIG);
+  // Buffs (Filtered to ensure no world buffs are active by default in raids)
+  const [buffs, setBuffs] = useState<BuffConfig>(() => {
+    const cleanBuffs = { ...DEFAULT_BUFF_CONFIG };
+    // Disable world buffs for raid ruleset
+    cleanBuffs.rallyingCryOfDragonslayer = false;
+    cleanBuffs.songflowerSerenade = false;
+    cleanBuffs.warchiefsBlessing = false;
+    cleanBuffs.spiritOfZandalar = false;
+    cleanBuffs.saygesFortune = 0;
+    cleanBuffs.fengusFerocity = false;
+    cleanBuffs.moldarsMoxie = false;
+    cleanBuffs.slipkiksSavvy = false;
+    return cleanBuffs;
+  });
 
   // Rotation
   const [rotation, setRotation] = useState<RotationConfig>({
@@ -136,6 +150,7 @@ export const App: React.FC = () => {
     hamstringRageThreshold: 70,
     hamstringSpamRageThreshold: 70,
     executePhase: true,
+    executeBtApThreshold: 2000,
     useDeathWish: true,
     useRecklessness: true,
     useBloodrage: true,
@@ -233,7 +248,16 @@ export const App: React.FC = () => {
     setEnchants(newEnchants);
 
     if (preset.talents) setTalents(preset.talents);
-    if (preset.buffs) setBuffs(preset.buffs);
+    if (preset.buffs) {
+      const clean = { ...preset.buffs };
+      // disable world buffs
+      clean.rallyingCryOfDragonslayer = false;
+      clean.songflowerSerenade = false;
+      clean.warchiefsBlessing = false;
+      clean.spiritOfZandalar = false;
+      clean.saygesFortune = 0;
+      setBuffs(clean);
+    }
     if (preset.rotation) {
       setRotation({
         ...rotation,
@@ -408,37 +432,63 @@ export const App: React.FC = () => {
     return getEnchantsForSlot(selectedSlot);
   }, [selectedSlot]);
 
+  // Current active race details
+  const activeRaceInfo = useMemo(() => {
+    const norm = String(race).toLowerCase().replace(/[^a-z]/g, '');
+    return WOW_FOREVER_RACES.find((r) => r.id.toLowerCase().replace(/[^a-z]/g, '') === norm) || WOW_FOREVER_RACES[0];
+  }, [race]);
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-      {/* Top Navbar */}
-      <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5 shadow-md">
+    <div className="min-h-screen bg-[#111318] text-[#e2e2e9] flex flex-col font-sans selection:bg-[#284777] selection:text-[#d6e3ff]">
+      {/* Google Material Design 3 Top Bar */}
+      <header className="border-b border-[#44474e]/40 bg-[#191c20]/95 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5 shadow-sm">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center shadow-lg shadow-amber-900/40 text-slate-950 font-black text-lg">
+            <div className="w-10 h-10 rounded-2xl bg-[#284777] text-[#a8c7fa] flex items-center justify-center font-black text-xl shadow-sm border border-[#a8c7fa]/30">
               ⚔️
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-sm font-extrabold tracking-wide uppercase text-slate-100">
-                  WoW: Forever <span className="text-amber-400">Fury Warrior BiS Sim</span>
+                <h1 className="text-sm font-bold tracking-tight text-[#e2e2e9]">
+                  WoW: Forever <span className="text-[#a8c7fa]">Fury Warrior BiS Sim</span>
                 </h1>
-                <span className="px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
+                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 uppercase tracking-wider">
                   Level 60 Launch
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-mono">
-                Sub-millisecond Rust Monte Carlo Engine &bull; Nov 4 Release
+              <p className="text-[11px] text-[#8e9099] font-mono">
+                Sub-millisecond Rust Monte Carlo Engine &bull; Google Material Design 3
               </p>
             </div>
           </div>
 
-          <nav className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-bold uppercase tracking-wider">
+          {/* Quick Race Selector Chip */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <select
+                value={activeRaceInfo.id}
+                onChange={(e) => setRace(e.target.value as Race)}
+                className="appearance-none bg-[#1d2024] border border-[#44474e]/50 hover:border-[#a8c7fa] text-[#d6e3ff] text-xs rounded-full pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] cursor-pointer transition-all font-medium"
+                title={`Active Racials: ${activeRaceInfo.racialsSummary}`}
+              >
+                {WOW_FOREVER_RACES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.faction}) &bull; {r.keyPerk}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[#a8c7fa] absolute right-2.5 top-2.5 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Segmented Pill Navigation Tabs */}
+          <nav className="flex bg-[#111318] p-1 rounded-full border border-[#44474e]/40 text-xs font-semibold">
             <button
               onClick={() => setActiveTab('bis')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
                 activeTab === 'bis'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
@@ -446,10 +496,10 @@ export const App: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('talents')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
                 activeTab === 'talents'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
               }`}
             >
               <Award className="w-3.5 h-3.5" />
@@ -457,32 +507,32 @@ export const App: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('buffs')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
                 activeTab === 'buffs'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Buffs &amp; Boss</span>
+              <span>Raid Buffs &amp; Consumables</span>
             </button>
             <button
               onClick={() => setActiveTab('rotation')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
                 activeTab === 'rotation'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
               }`}
             >
               <Sliders className="w-3.5 h-3.5" />
-              <span>Rotation</span>
+              <span>Priority &amp; Spell Analyzer</span>
             </button>
             <button
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
                 activeTab === 'analytics'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
+                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
@@ -550,7 +600,14 @@ export const App: React.FC = () => {
 
           {activeTab === 'rotation' && (
             <div className="h-full">
-              <RotationPanel rotation={rotation} onChange={setRotation} />
+              <RotationPanel
+                rotation={rotation}
+                onChange={setRotation}
+                simConfig={currentSimConfig}
+                characterSheet={characterSheet}
+                race={race}
+                talents={talents}
+              />
             </div>
           )}
 
@@ -573,6 +630,7 @@ export const App: React.FC = () => {
             onSimulate={handleSimulate}
             onCalculateWeights={handleCalculateWeights}
             engineMode={engineMode}
+            race={race}
           />
         </div>
       </main>

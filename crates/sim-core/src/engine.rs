@@ -24,6 +24,7 @@ pub struct IterationResult {
     pub total_rage_gained: f64,
     pub flurry_active_time: f64,
     pub gore_drinker_heals: u32,
+    pub proc_uptimes: HashMap<String, f64>,
     ability_stats: HashMap<String, AbilityStats>,
 }
 
@@ -65,14 +66,8 @@ impl SimulationRun {
             gear_ws += itm.weapon_skill;
         }
 
-        let mut racial_ws: f64 = 0.0;
-        let race_lower = config.race.to_lowercase();
-        let mh_type = mh.weapon_type.to_lowercase();
-        if race_lower == "human" && (mh_type.contains("sword") || mh_type.contains("mace")) {
-            racial_ws += 5.0;
-        } else if race_lower == "orc" && mh_type.contains("axe") {
-            racial_ws += 5.0;
-        }
+        // Weapon skill racials are 100% removed in WoW: Forever
+        let racial_ws: f64 = 0.0;
 
         let total_ws: f64 = 300.0 + talent_ws + racial_ws + gear_ws;
         let delta: f64 = f64::max(0.0, 315.0 - total_ws);
@@ -101,6 +96,12 @@ impl SimulationRun {
         let dt = 0.02; // 20ms discrete time-step
         let total_steps = (fight_duration / dt).ceil() as usize;
 
+        let race_lower = self.config.race.to_lowercase();
+        let is_undead = race_lower == "undead";
+        // Gnome Passive Expansive Mind: Max rage cap is 105 instead of 100
+        let max_rage = if race_lower == "gnome" { 105.0 } else { 100.0 };
+        let mut touch_of_the_grave_hits = 0u32;
+
         let mut current_time = 0.0;
         let mut rage: f64 = 0.0;
         let mut total_rage_gained = 0.0;
@@ -123,6 +124,7 @@ impl SimulationRun {
         let mut reck_cd = 0.0;
         let mut pot_cd = 0.0;
         let mut trinket_cd = 0.0;
+        let mut racial_cd = 0.0;
 
         // Buff / Proc Timers & Charges
         let mut flurry_charges = 0u8;
@@ -140,6 +142,22 @@ impl SimulationRun {
         let mut trinket_until = 0.0;
         let mut bonereaver_stacks = 0u8;
         let mut bonereaver_until = 0.0;
+
+        // Racial Buff Timers & Tracking
+        let mut blood_fury_until = 0.0;
+        let mut berserking_until = 0.0;
+        let mut elunes_light_until = 0.0;
+        let mut eureka_until = 0.0;
+        let mut eureka_charges = 0u8;
+        let mut touch_of_the_grave_cd = 0.0;
+
+        let mut blood_fury_active_time = 0.0;
+        let mut berserking_active_time = 0.0;
+        let mut elunes_light_active_time = 0.0;
+        let mut eureka_active_time = 0.0;
+        let mut crusader_mh_active_time = 0.0;
+        let mut crusader_oh_active_time = 0.0;
+        let mut death_wish_active_time = 0.0;
 
         let mut overpower_available_until = 0.0;
         let mut hs_queued = false;
@@ -171,17 +189,25 @@ impl SimulationRun {
             if reck_cd > 0.0 { reck_cd = (reck_cd - dt).max(0.0); }
             if pot_cd > 0.0 { pot_cd = (pot_cd - dt).max(0.0); }
             if trinket_cd > 0.0 { trinket_cd = (trinket_cd - dt).max(0.0); }
+            if racial_cd > 0.0 { racial_cd = (racial_cd - dt).max(0.0); }
 
             if flurry_charges > 0 {
                 flurry_active_time += dt;
             }
+            if current_time <= blood_fury_until { blood_fury_active_time += dt; }
+            if current_time <= berserking_until { berserking_active_time += dt; }
+            if current_time <= elunes_light_until { elunes_light_active_time += dt; }
+            if current_time <= eureka_until && eureka_charges > 0 { eureka_active_time += dt; }
+            if current_time <= crusader_mh_until { crusader_mh_active_time += dt; }
+            if current_time <= crusader_oh_until { crusader_oh_active_time += dt; }
+            if current_time <= death_wish_until { death_wish_active_time += dt; }
 
             // Passive Anger Management
             if self.config.talents.anger_management > 0 {
                 anger_management_timer -= dt;
                 if anger_management_timer <= 0.0 {
                     let old_rage = rage;
-                    rage = (rage + 1.0).min(100.0);
+                    rage = (rage + 1.0).min(max_rage);
                     total_rage_gained += rage - old_rage;
                     anger_management_timer = 3.0;
                 }
@@ -190,7 +216,7 @@ impl SimulationRun {
             // Bloodrage ticking
             if current_time <= bloodrage_until && current_time >= bloodrage_next_tick {
                 let old_rage = rage;
-                rage = (rage + 1.0).min(100.0);
+                rage = (rage + 1.0).min(max_rage);
                 total_rage_gained += rage - old_rage;
                 bloodrage_next_tick = current_time + 1.0;
             }
@@ -222,6 +248,18 @@ impl SimulationRun {
             if current_time <= mighty_rage_until {
                 dynamic_ap += 120.0; // 60 Str = 120 AP
             }
+            // Orc Blood Fury: +10% Attack Power (15s duration, 120s CD)
+            if current_time <= blood_fury_until {
+                dynamic_ap *= 1.10;
+            }
+            // Troll Berserking: +10% Haste (15s duration, 180s CD)
+            if current_time <= berserking_until {
+                dynamic_haste += 10.0;
+            }
+            // Night Elf Elune's Light: +10% Crit (15s duration, 180s CD)
+            if current_time <= elunes_light_until {
+                dynamic_crit += 10.0;
+            }
             if current_time <= recklessness_until {
                 dynamic_crit += 100.0;
             }
@@ -247,11 +285,8 @@ impl SimulationRun {
             let total_haste = dynamic_haste + flurry_haste;
             let haste_mult = 1.0 + total_haste / 100.0;
 
-            // Damage multipliers
+            // Damage multipliers (Darkmoon Faire is disabled in WoW: Forever raids)
             let mut dmg_mult = 1.0;
-            if self.config.buffs.darkmoon_faire {
-                dmg_mult *= 1.10;
-            }
             if current_time <= death_wish_until {
                 dmg_mult *= 1.20;
             }
@@ -272,12 +307,36 @@ impl SimulationRun {
             // Active Abilities & Cooldowns
             let in_execute = current_time >= execute_start_time;
 
+            // Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
+            if self.config.rotation.use_racial && racial_cd <= 0.0 {
+                match race_lower.as_str() {
+                    "orc" => {
+                        racial_cd = 120.0;
+                        blood_fury_until = current_time + 15.0;
+                    }
+                    "troll" => {
+                        racial_cd = 180.0;
+                        berserking_until = current_time + 15.0;
+                    }
+                    "night_elf" | "nightelf" => {
+                        racial_cd = 180.0;
+                        elunes_light_until = current_time + 15.0;
+                    }
+                    "gnome" => {
+                        racial_cd = 180.0;
+                        eureka_until = current_time + 15.0;
+                        eureka_charges = 3;
+                    }
+                    _ => {}
+                }
+            }
+
             // Mighty Rage Potion on execute phase entry (or pull if execute is 0)
             if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && (in_execute || self.config.encounter.execute_phase_pct <= 0.0) {
                 pot_cd = 120.0;
                 mighty_rage_until = current_time + 20.0;
                 let old_rage = rage;
-                rage = (rage + 60.0).min(100.0);
+                rage = (rage + 60.0).min(max_rage);
                 total_rage_gained += rage - old_rage;
             }
 
@@ -297,7 +356,7 @@ impl SimulationRun {
                 bloodrage_until = current_time + 10.0;
                 bloodrage_next_tick = current_time + 1.0;
                 let old_rage = rage;
-                rage = (rage + 10.0).min(100.0);
+                rage = (rage + 10.0).min(max_rage);
                 total_rage_gained += rage - old_rage;
                 if self.config.talents.gore_drinker > 0 {
                     gore_drinker_charges = 3;
@@ -314,7 +373,7 @@ impl SimulationRun {
                 };
                 if br_rage > 0.0 {
                     let old_rage = rage;
-                    rage = (rage + br_rage).min(100.0);
+                    rage = (rage + br_rage).min(max_rage);
                     total_rage_gained += rage - old_rage;
                 }
                 if self.config.talents.gore_drinker > 0 {
@@ -341,6 +400,8 @@ impl SimulationRun {
             // GCD Rotation Priority
             if gcd <= 0.0 {
                 let impale_crit_mult = 2.0 + 0.10 * (self.config.talents.impale as f64);
+                let eureka_active = current_time <= eureka_until && eureka_charges > 0;
+                let ability_cost_discount: f64 = if eureka_active { 5.0 } else { 0.0 };
 
                 // 1. Overpower stance-dance window
                 let can_overpower = self.config.rotation.use_overpower
@@ -352,12 +413,19 @@ impl SimulationRun {
                     // Stance dance to Battle Stance
                     let retained = self.sheet.retained_stance_rage;
                     rage = rage.min(retained);
+                    let op_cost = (5.0 - ability_cost_discount).max(0.0);
 
-                    if rage >= 5.0 {
-                        rage -= 5.0;
+                    if rage >= op_cost {
+                        rage -= op_cost;
                         op_cd = 5.0;
                         gcd = 1.5;
                         overpower_available_until = 0.0; // Consumed
+
+                        let mut ability_dmg_mult = dmg_mult;
+                        if eureka_active {
+                            eureka_charges -= 1;
+                            ability_dmg_mult *= 1.10;
+                        }
 
                         // Overpower yellow roll: cannot be dodged/blocked/parried
                         let roll: f64 = rng.gen_range(0.0..100.0);
@@ -373,9 +441,11 @@ impl SimulationRun {
                             entry.crits += 1;
                             let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
                             let raw_dmg = weapon_roll + (dynamic_ap / 14.0) * self.norm_mh_speed + 35.0;
-                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                             // Crit triggers flurry & deep wounds
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
@@ -390,9 +460,11 @@ impl SimulationRun {
                             entry.hits += 1;
                             let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
                             let raw_dmg = weapon_roll + (dynamic_ap / 14.0) * self.norm_mh_speed + 35.0;
-                            let final_dmg = raw_dmg * armor_mult * dmg_mult;
+                            let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                         }
 
                         // Stance dance back to Berserker Stance
@@ -408,17 +480,37 @@ impl SimulationRun {
                         2..=u8::MAX => 10.0,
                         _ => 15.0,
                     };
+                    let effective_exec_cost = (exec_cost - ability_cost_discount).max(0.0);
+                    let bt_cost = (30.0 - ability_cost_discount).max(0.0);
+
+                    let pool_thresh = if self.config.rotation.execute_rage_pool_threshold > 0.0 {
+                        self.config.rotation.execute_rage_pool_threshold
+                    } else {
+                        45.0
+                    };
+                    let bt_ap_thresh = if self.config.rotation.execute_bt_ap_threshold > 0.0 {
+                        self.config.rotation.execute_bt_ap_threshold
+                    } else {
+                        2000.0
+                    };
 
                     let prefer_bt = self.config.rotation.use_bloodthirst
+                        && self.config.rotation.use_bt_in_execute
                         && self.config.talents.bloodthirst > 0
-                        && dynamic_ap >= self.config.rotation.execute_bt_ap_threshold
                         && bt_cd <= 0.0
-                        && rage >= 30.0;
+                        && rage >= bt_cost
+                        && (dynamic_ap >= bt_ap_thresh || rage >= pool_thresh);
 
-                    if !prefer_bt && rage >= exec_cost {
-                        let extra_rage = rage - exec_cost;
+                    if !prefer_bt && rage >= effective_exec_cost {
+                        let extra_rage = rage - effective_exec_cost;
                         rage = 0.0; // Drains all rage
                         gcd = 1.5;
+
+                        let mut ability_dmg_mult = dmg_mult;
+                        if eureka_active {
+                            eureka_charges -= 1;
+                            ability_dmg_mult *= 1.10;
+                        }
 
                         let roll: f64 = rng.gen_range(0.0..100.0);
                         let yellow_miss = self.sheet.yellow_miss_pct;
@@ -437,9 +529,11 @@ impl SimulationRun {
                             overpower_available_until = current_time + 5.0;
                         } else if roll < yellow_miss + dodge + yellow_crit {
                             entry.crits += 1;
-                            let final_dmg = base_exec_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                            let final_dmg = base_exec_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
                             if self.config.talents.deep_wounds > 0 {
@@ -451,19 +545,28 @@ impl SimulationRun {
                             }
                         } else {
                             entry.hits += 1;
-                            let final_dmg = base_exec_dmg * armor_mult * dmg_mult;
+                            let final_dmg = base_exec_dmg * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                         }
                         continue;
                     }
                 }
 
                 // 3. Bloodthirst
-                if self.config.rotation.use_bloodthirst && self.config.talents.bloodthirst > 0 && bt_cd <= 0.0 && rage >= 30.0 {
-                    rage -= 30.0;
+                let bt_cost = (30.0 - ability_cost_discount).max(0.0);
+                if self.config.rotation.use_bloodthirst && self.config.talents.bloodthirst > 0 && bt_cd <= 0.0 && rage >= bt_cost {
+                    rage -= bt_cost;
                     bt_cd = 6.0;
                     gcd = 1.5;
+
+                    let mut ability_dmg_mult = dmg_mult;
+                    if eureka_active {
+                        eureka_charges -= 1;
+                        ability_dmg_mult *= 1.10;
+                    }
 
                     if self.config.talents.gore_drinker > 0 {
                         gore_drinker_charges = 3;
@@ -486,9 +589,11 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = base_bt_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                        let final_dmg = base_bt_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
@@ -500,9 +605,11 @@ impl SimulationRun {
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = base_bt_dmg * armor_mult * dmg_mult;
+                        let final_dmg = base_bt_dmg * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                     }
 
                     // Windfury on Yellow Attack
@@ -515,6 +622,10 @@ impl SimulationRun {
                                 dynamic_crit,
                                 armor_mult,
                                 dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
                                 &mut rage,
                                 &mut total_rage_gained,
                                 &mut flurry_charges,
@@ -536,11 +647,18 @@ impl SimulationRun {
                 }
 
                 // 4. Whirlwind
-                let ww_cost = 25.0 - (self.config.talents.raging_blows as f64);
+                let base_ww_cost = 25.0 - (self.config.talents.raging_blows as f64);
+                let ww_cost = (base_ww_cost - ability_cost_discount).max(0.0);
                 if self.config.rotation.use_whirlwind && ww_cd <= 0.0 && rage >= ww_cost {
                     rage -= ww_cost;
                     ww_cd = 10.0;
                     gcd = 1.5;
+
+                    let mut ability_dmg_mult = dmg_mult;
+                    if eureka_active {
+                        eureka_charges -= 1;
+                        ability_dmg_mult *= 1.10;
+                    }
 
                     let entry = ability_stats.entry("Whirlwind".to_string()).or_default();
                     entry.casts += 1;
@@ -563,9 +681,11 @@ impl SimulationRun {
                             overpower_available_until = current_time + 5.0;
                         } else if roll < yellow_miss + dodge + yellow_crit {
                             entry.crits += 1;
-                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
                             if self.config.talents.deep_wounds > 0 {
@@ -577,9 +697,11 @@ impl SimulationRun {
                             }
                         } else {
                             entry.hits += 1;
-                            let final_dmg = raw_dmg * armor_mult * dmg_mult;
+                            let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                         }
                     }
 
@@ -593,6 +715,10 @@ impl SimulationRun {
                                 dynamic_crit,
                                 armor_mult,
                                 dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
                                 &mut rage,
                                 &mut total_rage_gained,
                                 &mut flurry_charges,
@@ -614,13 +740,21 @@ impl SimulationRun {
                 }
 
                 // 5. Hamstring (Rage Dump / Proc Fishing)
+                let hs_cost = (10.0 - ability_cost_discount).max(0.0);
                 if self.config.rotation.use_hamstring
                     && rage >= self.config.rotation.hamstring_rage_threshold
                     && bt_cd > 1.0
                     && ww_cd > 1.0
+                    && rage >= hs_cost
                 {
-                    rage -= 10.0;
+                    rage -= hs_cost;
                     gcd = 1.5;
+
+                    let mut ability_dmg_mult = dmg_mult;
+                    if eureka_active {
+                        eureka_charges -= 1;
+                        ability_dmg_mult *= 1.10;
+                    }
 
                     let roll: f64 = rng.gen_range(0.0..100.0);
                     let yellow_miss = self.sheet.yellow_miss_pct;
@@ -639,9 +773,11 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = base_hs_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                        let final_dmg = base_hs_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
@@ -653,9 +789,11 @@ impl SimulationRun {
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = base_hs_dmg * armor_mult * dmg_mult;
+                        let final_dmg = base_hs_dmg * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                     }
 
                     // Windfury proc on Hamstring hit
@@ -668,6 +806,10 @@ impl SimulationRun {
                                 dynamic_crit,
                                 armor_mult,
                                 dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
                                 &mut rage,
                                 &mut total_rage_gained,
                                 &mut flurry_charges,
@@ -704,16 +846,25 @@ impl SimulationRun {
                 mh_swing_timer = self.mh.speed;
 
                 let use_cleave = self.config.rotation.use_cleave && self.config.encounter.targets > 1;
-                let queue_cost = if use_cleave {
+                let eureka_active = current_time <= eureka_until && eureka_charges > 0;
+                let ability_cost_discount: f64 = if eureka_active { 5.0 } else { 0.0 };
+                let base_queue_cost = if use_cleave {
                     20.0 - (self.config.talents.raging_blows as f64)
                 } else {
                     15.0 - (self.config.talents.improved_heroic_strike as f64)
                 };
+                let queue_cost = (base_queue_cost - ability_cost_discount).max(0.0);
 
                 if hs_queued && rage >= queue_cost {
                     // HEROIC STRIKE / CLEAVE EXECUTES
                     rage -= queue_cost;
                     hs_queued = false;
+
+                    let mut ability_dmg_mult = dmg_mult;
+                    if eureka_active {
+                        eureka_charges -= 1;
+                        ability_dmg_mult *= 1.10;
+                    }
 
                     let ability_name = if use_cleave { "Cleave" } else { "Heroic Strike" };
                     let bonus_dmg = if use_cleave { 50.0 } else { 157.0 };
@@ -737,9 +888,11 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = raw_dmg * impale_crit_mult * armor_mult * dmg_mult;
+                        let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
@@ -751,9 +904,11 @@ impl SimulationRun {
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = raw_dmg * armor_mult * dmg_mult;
+                        let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                     }
 
                     // Cleave second target
@@ -763,12 +918,14 @@ impl SimulationRun {
                         let raw_dmg2 = weapon_roll2 + (dynamic_ap / 14.0) * self.mh.speed + bonus_dmg;
                         if roll2 >= yellow_miss + dodge {
                             let final_dmg2 = if roll2 < yellow_miss + dodge + yellow_crit {
-                                raw_dmg2 * impale_crit_mult * armor_mult * dmg_mult
+                                raw_dmg2 * impale_crit_mult * armor_mult * ability_dmg_mult
                             } else {
-                                raw_dmg2 * armor_mult * dmg_mult
+                                raw_dmg2 * armor_mult * ability_dmg_mult
                             };
                             entry.total_damage += final_dmg2;
                             total_damage += final_dmg2;
+
+                            Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
                         }
                     }
 
@@ -782,6 +939,10 @@ impl SimulationRun {
                                 dynamic_crit,
                                 armor_mult,
                                 dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
                                 &mut rage,
                                 &mut total_rage_gained,
                                 &mut flurry_charges,
@@ -839,9 +1000,11 @@ impl SimulationRun {
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                         // Rage generation
                         let old_rage = rage;
-                        rage = (rage + norm_rage).min(100.0);
+                        rage = (rage + norm_rage).min(max_rage);
                         total_rage_gained += rage - old_rage;
 
                         self.resolve_on_hit_procs(
@@ -860,9 +1023,11 @@ impl SimulationRun {
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                         // Rage generation: Crit Rage = 2.0 * norm_rage (+100% crit rage bonus!)
                         let old_rage = rage;
-                        rage = (rage + crit_rage).min(100.0);
+                        rage = (rage + crit_rage).min(max_rage);
                         total_rage_gained += rage - old_rage;
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
@@ -890,9 +1055,11 @@ impl SimulationRun {
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                         // Rage generation
                         let old_rage = rage;
-                        rage = (rage + norm_rage).min(100.0);
+                        rage = (rage + norm_rage).min(max_rage);
                         total_rage_gained += rage - old_rage;
 
                         self.resolve_on_hit_procs(
@@ -911,7 +1078,7 @@ impl SimulationRun {
                     if self.config.talents.unbridled_wrath > 0 && roll >= white_miss + dodge {
                         if rng.gen_range(0.0..100.0) < (self.config.talents.unbridled_wrath as f64) * 8.0 {
                             let old_rage = rage;
-                            rage = (rage + 1.0).min(100.0);
+                            rage = (rage + 1.0).min(max_rage);
                             total_rage_gained += rage - old_rage;
                         }
                     }
@@ -926,6 +1093,10 @@ impl SimulationRun {
                                 dynamic_crit,
                                 armor_mult,
                                 dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
                                 &mut rage,
                                 &mut total_rage_gained,
                                 &mut flurry_charges,
@@ -991,9 +1162,11 @@ impl SimulationRun {
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
+                    Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                     // Rage generation
                     let old_rage = rage;
-                    rage = (rage + norm_rage).min(100.0);
+                    rage = (rage + norm_rage).min(max_rage);
                     total_rage_gained += rage - old_rage;
 
                     self.resolve_on_hit_procs(
@@ -1012,9 +1185,11 @@ impl SimulationRun {
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
+                    Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                     // Rage generation: Crit Rage = 2.0 * norm_rage
                     let old_rage = rage;
-                    rage = (rage + crit_rage).min(100.0);
+                    rage = (rage + crit_rage).min(max_rage);
                     total_rage_gained += rage - old_rage;
 
                     if self.config.talents.flurry > 0 { flurry_charges = 3; }
@@ -1042,9 +1217,11 @@ impl SimulationRun {
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
+                    Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
                     // Rage generation
                     let old_rage = rage;
-                    rage = (rage + norm_rage).min(100.0);
+                    rage = (rage + norm_rage).min(max_rage);
                     total_rage_gained += rage - old_rage;
 
                     self.resolve_on_hit_procs(
@@ -1063,11 +1240,41 @@ impl SimulationRun {
                 if self.config.talents.unbridled_wrath > 0 && roll >= oh_miss + dodge {
                     if rng.gen_range(0.0..100.0) < (self.config.talents.unbridled_wrath as f64) * 8.0 {
                         let old_rage = rage;
-                        rage = (rage + 1.0).min(100.0);
+                        rage = (rage + 1.0).min(max_rage);
                         total_rage_gained += rage - old_rage;
                     }
                 }
             }
+        }
+
+        let mut proc_uptimes = HashMap::new();
+        if blood_fury_active_time > 0.0 {
+            proc_uptimes.insert("Blood Fury".to_string(), blood_fury_active_time);
+        }
+        if berserking_active_time > 0.0 {
+            proc_uptimes.insert("Berserking".to_string(), berserking_active_time);
+        }
+        if elunes_light_active_time > 0.0 {
+            proc_uptimes.insert("Elune's Light".to_string(), elunes_light_active_time);
+        }
+        if eureka_active_time > 0.0 {
+            proc_uptimes.insert("Eureka!".to_string(), eureka_active_time);
+        }
+        if crusader_mh_active_time > 0.0 {
+            proc_uptimes.insert("Crusader (MH)".to_string(), crusader_mh_active_time);
+        }
+        if crusader_oh_active_time > 0.0 {
+            proc_uptimes.insert("Crusader (OH)".to_string(), crusader_oh_active_time);
+        }
+        if death_wish_active_time > 0.0 {
+            proc_uptimes.insert("Death Wish".to_string(), death_wish_active_time);
+        }
+
+        if touch_of_the_grave_hits > 0 {
+            let entry = ability_stats.entry("Touch of the Grave".to_string()).or_default();
+            entry.casts += touch_of_the_grave_hits;
+            entry.hits += touch_of_the_grave_hits;
+            entry.total_damage += (touch_of_the_grave_hits as f64) * 55.0;
         }
 
         IterationResult {
@@ -1076,7 +1283,23 @@ impl SimulationRun {
             total_rage_gained,
             flurry_active_time,
             gore_drinker_heals: total_gore_drinker_heals,
+            proc_uptimes,
             ability_stats,
+        }
+    }
+
+    #[inline(always)]
+    fn check_touch_of_the_grave(
+        is_undead: bool,
+        current_time: f64,
+        cd: &mut f64,
+        hits: &mut u32,
+        total_damage: &mut f64,
+    ) {
+        if is_undead && current_time >= *cd {
+            *cd = current_time + 15.0;
+            *hits += 1;
+            *total_damage += 55.0;
         }
     }
 
@@ -1089,6 +1312,10 @@ impl SimulationRun {
         dynamic_crit: f64,
         armor_mult: f64,
         dmg_mult: f64,
+        max_rage: f64,
+        is_undead: bool,
+        touch_of_the_grave_cd: &mut f64,
+        touch_of_the_grave_hits: &mut u32,
         rage: &mut f64,
         total_rage_gained: &mut f64,
         flurry_charges: &mut u8,
@@ -1138,8 +1365,10 @@ impl SimulationRun {
             entry.total_damage += final_dmg;
             *total_damage += final_dmg;
 
+            Self::check_touch_of_the_grave(is_undead, current_time, touch_of_the_grave_cd, touch_of_the_grave_hits, total_damage);
+
             let old_rage = *rage;
-            *rage = (*rage + norm_rage).min(100.0);
+            *rage = (*rage + norm_rage).min(max_rage);
             *total_rage_gained += *rage - old_rage;
 
             self.resolve_on_hit_procs(
@@ -1158,8 +1387,10 @@ impl SimulationRun {
             entry.total_damage += final_dmg;
             *total_damage += final_dmg;
 
+            Self::check_touch_of_the_grave(is_undead, current_time, touch_of_the_grave_cd, touch_of_the_grave_hits, total_damage);
+
             let old_rage = *rage;
-            *rage = (*rage + crit_rage).min(100.0);
+            *rage = (*rage + crit_rage).min(max_rage);
             *total_rage_gained += *rage - old_rage;
 
             if self.config.talents.flurry > 0 { *flurry_charges = 3; }
@@ -1187,8 +1418,10 @@ impl SimulationRun {
             entry.total_damage += final_dmg;
             *total_damage += final_dmg;
 
+            Self::check_touch_of_the_grave(is_undead, current_time, touch_of_the_grave_cd, touch_of_the_grave_hits, total_damage);
+
             let old_rage = *rage;
-            *rage = (*rage + norm_rage).min(100.0);
+            *rage = (*rage + norm_rage).min(max_rage);
             *total_rage_gained += *rage - old_rage;
 
             self.resolve_on_hit_procs(
@@ -1325,6 +1558,7 @@ pub fn run_sim(config: &SimConfig) -> SimResult {
     let mut total_gore_drinker_heals = 0u64;
 
     let mut ability_aggregate: HashMap<String, AbilityStats> = HashMap::new();
+    let mut total_proc_times: HashMap<String, f64> = HashMap::new();
     let mut dps_list = Vec::with_capacity(iterations as usize);
 
     for res in &iteration_results {
@@ -1340,6 +1574,10 @@ pub fn run_sim(config: &SimConfig) -> SimResult {
             total_fight_time += res.fight_duration;
         }
         total_gore_drinker_heals += res.gore_drinker_heals as u64;
+
+        for (name, time) in &res.proc_uptimes {
+            *total_proc_times.entry(name.clone()).or_default() += time;
+        }
 
         for (name, stats) in &res.ability_stats {
             let agg = ability_aggregate.entry(name.clone()).or_default();
@@ -1426,6 +1664,13 @@ pub fn run_sim(config: &SimConfig) -> SimResult {
 
     let elapsed_ms = start_time.elapsed().as_secs_f64() * 1000.0;
 
+    let mut proc_uptimes: HashMap<String, f64> = HashMap::new();
+    if total_fight_time > 0.0 {
+        for (name, total_time) in total_proc_times {
+            proc_uptimes.insert(name, (total_time / total_fight_time) * 100.0);
+        }
+    }
+
     SimResult {
         mean_dps,
         min_dps,
@@ -1440,5 +1685,6 @@ pub fn run_sim(config: &SimConfig) -> SimResult {
         sheet: runner.sheet,
         abilities,
         dps_histogram,
+        proc_uptimes,
     }
 }
