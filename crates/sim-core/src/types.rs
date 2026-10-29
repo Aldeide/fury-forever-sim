@@ -148,10 +148,11 @@ pub struct BuffConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AplCondition {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", alias = "condition_type", alias = "conditionType")]
     pub condition_type: String,
     pub value: Option<f64>,
     pub buff: Option<String>,
+    #[serde(alias = "targetBuff")]
     pub target_buff: Option<String>,
 }
 
@@ -306,9 +307,15 @@ pub struct CharacterSheetSummary {
 #[serde(rename_all = "camelCase", default)]
 pub struct SimResult {
     pub mean_dps: f64,
+    #[serde(default)]
+    pub dps: f64,
     pub min_dps: f64,
     pub max_dps: f64,
+    #[serde(default)]
+    pub median_dps: f64,
     pub std_dev_dps: f64,
+    #[serde(default)]
+    pub std_dev: f64,
     pub error_margin: f64,
     pub mean_rps: f64,
     pub flurry_uptime_pct: f64,

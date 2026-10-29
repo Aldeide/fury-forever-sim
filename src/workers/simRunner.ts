@@ -75,18 +75,7 @@ export async function runSimulation(
     },
   };
 
-  // 1. Tauri Native IPC if in Desktop App
-  if (isTauriEnvironment()) {
-    try {
-      const { invoke } = (window as any).__TAURI__.tauri || (window as any).__TAURI__.core;
-      const res = await invoke('run_sim', { config: runConfig, iterations });
-      if (res) return typeof res === 'string' ? JSON.parse(res) : res;
-    } catch (e) {
-      console.warn('Tauri invoke fallback to local worker:', e);
-    }
-  }
-
-  // 2. Web Worker with WASM or TS
+  // Web Worker Pool
   const worker = pool.getWorker();
   if (worker) {
     return new Promise((resolve, reject) => {
@@ -127,18 +116,7 @@ export async function runBatchSlot(
   allItems: Record<string, ItemStats>,
   onProgress?: (completed: number, total: number) => void
 ): Promise<BatchSlotResult> {
-  // 1. Tauri Native IPC
-  if (isTauriEnvironment()) {
-    try {
-      const { invoke } = (window as any).__TAURI__.tauri || (window as any).__TAURI__.core;
-      const res = await invoke('run_batch_slot', { request, allItems });
-      if (res) return typeof res === 'string' ? JSON.parse(res) : res;
-    } catch (e) {
-      console.warn('Tauri batch slot fallback to local worker:', e);
-    }
-  }
-
-  // 2. Web Worker Pool
+  // Web Worker Pool
   const worker = pool.getWorker();
   if (worker) {
     return new Promise((resolve, reject) => {
@@ -180,18 +158,7 @@ export async function runStatWeights(
   iterations = 1500,
   onProgress?: (completed: number, total: number) => void
 ): Promise<StatWeightsResult> {
-  // 1. Tauri Native IPC
-  if (isTauriEnvironment()) {
-    try {
-      const { invoke } = (window as any).__TAURI__.tauri || (window as any).__TAURI__.core;
-      const res = await invoke('run_stat_weights', { config, iterations });
-      if (res) return typeof res === 'string' ? JSON.parse(res) : res;
-    } catch (e) {
-      console.warn('Tauri stat weights fallback to local worker:', e);
-    }
-  }
-
-  // 2. Web Worker
+  // Web Worker
   const worker = pool.getWorker();
   if (worker) {
     return new Promise((resolve, reject) => {

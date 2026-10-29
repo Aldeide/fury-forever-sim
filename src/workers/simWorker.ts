@@ -33,20 +33,7 @@ self.addEventListener('message', async (e: MessageEvent) => {
 
     if (type === 'SIMULATE') {
       const { config, iterations } = payload as { config: SimConfig; iterations?: number };
-      const wasm = await tryLoadWasm();
-
-      let result;
-      if (wasm && wasm.simulate_json) {
-        try {
-          const jsonStr = wasm.simulate_json(JSON.stringify(config), iterations || 2000);
-          result = JSON.parse(jsonStr);
-        } catch (wasmErr) {
-          result = simulateCombat(config, iterations || 2000);
-        }
-      } else {
-        result = simulateCombat(config, iterations || 2000);
-      }
-
+      const result = simulateCombat(config, iterations || 2000);
       self.postMessage({ id, type: 'SIMULATE_RESULT', payload: result });
       return;
     }

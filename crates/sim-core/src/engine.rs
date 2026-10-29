@@ -2659,11 +2659,16 @@ pub fn run_sim(config: &SimConfig) -> SimResult {
         }
     }
 
+    let median = if !dps_list.is_empty() { dps_list[dps_list.len() / 2] } else { 0.0 };
+
     SimResult {
         mean_dps,
+        dps: mean_dps,
         min_dps,
         max_dps,
+        median_dps: median,
         std_dev_dps,
+        std_dev: std_dev_dps,
         error_margin,
         mean_rps,
         flurry_uptime_pct,

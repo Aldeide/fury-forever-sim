@@ -70,7 +70,7 @@ interface SavedSimState {
 
 const getSavedSimState = (): SavedSimState | null => {
   try {
-    const raw = localStorage.getItem('wow_forever_sim_state_v1');
+    const raw = localStorage.getItem('wow_forever_sim_state_v2');
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
@@ -154,7 +154,9 @@ export const App: React.FC = () => {
         const itemId = savedState.gearIds[slot];
         restored[slot] = itemId ? (customItems.find((i) => i.id === itemId) || getItemById(itemId) || null) : null;
       }
-      return restored;
+      if (restored.mainhand) {
+        return restored;
+      }
     }
     const initialGear: Partial<Record<EquipmentSlot, ItemStats | null>> = {};
     for (const slotKey in defaultPreset.gear) {
@@ -345,7 +347,7 @@ export const App: React.FC = () => {
         race,
         selectedSlot,
       };
-      localStorage.setItem('wow_forever_sim_state_v1', JSON.stringify(stateToSave));
+      localStorage.setItem('wow_forever_sim_state_v2', JSON.stringify(stateToSave));
     } catch (e) {
       console.warn('Failed to save sim state to localStorage:', e);
     }
