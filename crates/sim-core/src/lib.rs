@@ -352,32 +352,4 @@ mod tests {
         assert!(exec.is_some(), "Execute should be cast during execute phase");
         assert!(bt.unwrap().casts > 0.0, "BT casts should be > 0 during execute phase with high AP/pooling");
     }
-
-    #[test]
-    fn test_wowsims_preraid_benchmark() {
-        println!("Current dir: {:?}", std::env::current_dir());
-        let candidates = [
-            "config_test.json",
-            "../config_test.json",
-            "../../config_test.json",
-            "wow-forever-sim/config_test.json",
-        ];
-        for candidate in candidates {
-            if let Ok(data) = std::fs::read_to_string(candidate) {
-                if let Ok(cfg) = serde_json::from_str::<SimConfig>(&data) {
-                    let res = run_sim(&cfg);
-                    println!("\n==========================================");
-                    println!("RUST SIM-CORE DPS: {:.1} (min: {:.1}, max: {:.1}, std_dev: {:.1})", res.mean_dps, res.min_dps, res.max_dps, res.std_dev_dps);
-                    for ab in &res.abilities {
-                        println!("  {}: {:.1} DPS ({:.1}%)", ab.name, ab.dps, ab.pct);
-                    }
-                    println!("==========================================\n");
-                    return;
-                } else if let Err(e) = serde_json::from_str::<SimConfig>(&data) {
-                    println!("Failed to parse {}: {}", candidate, e);
-                }
-            }
-        }
-        println!("config_test.json not found, skipping benchmark print");
-    }
 }

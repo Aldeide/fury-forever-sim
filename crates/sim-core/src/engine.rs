@@ -253,13 +253,13 @@ impl SimulationRun {
             let mut dynamic_armor_pen = 0.0;
 
             if current_time <= crusader_mh_until {
-                dynamic_ap += 200.0; // 100 Str = 200 AP
+                dynamic_ap += if self.config.buffs.blessing_of_kings { 220.0 } else { 200.0 }; // 100 Str = 200 AP (+10% with Kings)
             }
             if current_time <= crusader_oh_until {
-                dynamic_ap += 200.0;
+                dynamic_ap += if self.config.buffs.blessing_of_kings { 220.0 } else { 200.0 };
             }
             if current_time <= mighty_rage_until {
-                dynamic_ap += 120.0; // 60 Str = 120 AP
+                dynamic_ap += if self.config.buffs.blessing_of_kings { 132.0 } else { 120.0 }; // 60 Str = 120 AP (+10% with Kings)
             }
             // Orc Blood Fury: +10% Attack Power (15s duration, 120s CD)
             if current_time <= blood_fury_until {

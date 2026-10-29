@@ -188,13 +188,18 @@ export const App: React.FC = () => {
 
   // Build Full SimConfig object
   const currentSimConfig = useMemo<SimConfig>(() => {
-    const itemsList: ItemStats[] = Object.values(gear).filter(Boolean) as ItemStats[];
-    const enchantsList: ItemStats[] = Object.values(enchants)
-      .filter(Boolean)
-      .map((e) => ({
+    const itemsList: ItemStats[] = Object.entries(gear)
+      .filter(([, item]) => Boolean(item))
+      .map(([slotKey, item]) => ({
+        ...item!,
+        slot: item!.slot === 'twohand' ? 'twohand' : (slotKey as EquipmentSlot),
+      }));
+    const enchantsList: ItemStats[] = Object.entries(enchants)
+      .filter(([, e]) => Boolean(e))
+      .map(([slotKey, e]) => ({
         id: e!.id,
         name: e!.name,
-        slot: e!.slot,
+        slot: slotKey as EquipmentSlot,
         ...e!.stats,
       }));
 

@@ -135,33 +135,49 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
     gearWeaponSkill += item.weaponSkill || 0;
     gearArmor += item.armor || 0;
     if (item.onUseArmorPen) gearArmorPen += (item.onUseArmorPen * (item.onUseDuration || 15)) / (item.onUseCd || 120);
+  }
 
-    const enchant = (enchants as any)[slot];
-    if (enchant && enchant.stats) {
-      gearStr += enchant.stats.str || 0;
-      gearAgi += enchant.stats.agi || 0;
-      gearSta += enchant.stats.sta || 0;
-      gearAp += enchant.stats.ap || 0;
-      gearCrit += enchant.stats.crit || 0;
-      gearHit += enchant.stats.hit || 0;
-      gearHaste += enchant.stats.haste || 0;
+  // Enchants Support: accepts either array of ItemStats or object mapping slot -> enchant
+  if (Array.isArray(enchants)) {
+    for (const ench of enchants) {
+      if (ench) {
+        gearStr += ench.str || (ench as any).stats?.str || 0;
+        gearAgi += ench.agi || (ench as any).stats?.agi || 0;
+        gearSta += ench.sta || (ench as any).stats?.sta || 0;
+        gearAp += ench.ap || (ench as any).stats?.ap || 0;
+        gearCrit += ench.crit || (ench as any).stats?.crit || 0;
+        gearHit += ench.hit || (ench as any).stats?.hit || 0;
+        gearHaste += ench.haste || (ench as any).stats?.haste || 0;
+      }
+    }
+  } else if (enchants && typeof enchants === 'object') {
+    for (const slot in gear) {
+      const enchant = (enchants as any)[slot];
+      if (enchant && enchant.stats) {
+        gearStr += enchant.stats.str || 0;
+        gearAgi += enchant.stats.agi || 0;
+        gearSta += enchant.stats.sta || 0;
+        gearAp += enchant.stats.ap || 0;
+        gearCrit += enchant.stats.crit || 0;
+        gearHit += enchant.stats.hit || 0;
+        gearHaste += enchant.stats.haste || 0;
+      }
     }
   }
 
   // Buff additions
   let buffStr = 0;
   let buffAgi = 0;
+  let buffSta = 0;
   let buffAp = 0;
   let buffCrit = 0;
   let buffHaste = 0;
 
-  if (buffs.blessingOfKings) {
-    baseStr *= 1.1;
-    baseAgi *= 1.1;
-    baseSta *= 1.1;
-    gearStr *= 1.1;
-    gearAgi *= 1.1;
-    gearSta *= 1.1;
+  // Mark of the Wild (+12 All Stats)
+  if (buffs.markOfTheWild) {
+    buffStr += 12;
+    buffAgi += 12;
+    buffSta += 12;
   }
 
   // World Buffs are completely disabled in WoW: Forever raids:
@@ -172,7 +188,7 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   // - Fengus' Ferocity / Dire Maul Tribute
   // (Left inactive to mirror sim-core stats.rs)
 
-  if (buffs.elixirOfMongoose) {
+  if (buffs.elixirOfMongoose || buffs.elixirOfTheMongoose) {
     buffAgi += 25;
     buffCrit += 2.0;
   }
@@ -182,8 +198,8 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   if (buffs.jujuFlurry) buffHaste += 3.0;
   if (buffs.winterfallFirewater) buffAp += 35;
   if (buffs.smokedDesertDumplings) buffStr += 20;
-  if (buffs.strengthOfEarthTotem) buffStr += 77;
-  if (buffs.graceOfAirTotem) buffAgi += 77;
+  if (buffs.strengthOfEarthTotem || buffs.strengthOfEarth) buffStr += 77;
+  if (buffs.graceOfAirTotem || buffs.graceOfAir) buffAgi += 77;
   if (buffs.battleShout) buffAp += buffs.improvedBattleShout ? 290 : 232;
   if (buffs.blessingOfMight) buffAp += buffs.improvedBlessingOfMight ? 222 : 185;
   if (buffs.trueshotAura) buffAp += 100;
@@ -196,9 +212,11 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   const crueltyCrit = (talents.cruelty || 0) * 1.0;
   const weaponMasterySkill = (talents.weaponMastery || 0) * 3;
 
-  const totalStr = Math.round(baseStr + gearStr + buffStr);
-  const totalAgi = Math.round(baseAgi + gearAgi + buffAgi);
-  const totalSta = Math.round(baseSta + gearSta);
+  // Blessing of Kings: +10% All Stats applies to (base + gear + buffs)
+  const statMult = buffs.blessingOfKings ? 1.10 : 1.0;
+  const totalStr = Math.round((baseStr + gearStr + buffStr) * statMult);
+  const totalAgi = Math.round((baseAgi + gearAgi + buffAgi) * statMult);
+  const totalSta = Math.round((baseSta + gearSta + buffSta) * statMult);
 
   const apFromStr = totalStr * 2;
   const critFromAgi = totalAgi / 20.0;
@@ -305,7 +323,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
   const stats = calculateCharacterSheet(config);
   const { encounter = {}, rotation = {}, talents = {}, buffs = {} } = config;
   const duration = encounter.durationSec || encounter.duration || 60;
-  const isDualWield = !config.gear?.twohand && !!config.gear?.offhand;
+  const isDualWield = (!config.gear?.twohand && !!config.gear?.offhand) || (config.items?.some((i) => i.slot === 'offhand') ?? false);
 
   const rawSeed = config.encounter?.seed && config.encounter.seed > 0
     ? config.encounter.seed
@@ -484,6 +502,68 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
     };
 
+    // Extra attack items detection (Hand of Justice & Ironfoe)
+    const gearMap = config.gear || {};
+    const hasHoj = config.items?.some((i) => i.id === 'hand-of-justice' || i.procType === 'hoj') ||
+                   (gearMap as any)?.trinket1?.id === 'hand-of-justice' || (gearMap as any)?.trinket2?.id === 'hand-of-justice';
+    const mhItem = config.items?.find((i) => i.slot === 'mainhand') || (gearMap as any)?.mainhand;
+    const isIronfoe = mhItem?.id === 'ironfoe' || mhItem?.procType === 'ironfoe';
+
+    const resolveExtraAttack = (ap: number, crit: number, dmgMult: number) => {
+      abilityStats['Auto-Attack (MH)'].casts++;
+      const roll = rng.next();
+      const suppressedCrit = Math.max(0, crit - 3.0) / 100.0;
+      const whiteCritCap = Math.max(0, 1.0 - (mhWhiteMiss + yellowDodgeChance + glancingChance));
+      const effectiveCrit = Math.min(whiteCritCap, suppressedCrit);
+      const critThreshold = mhWhiteMiss + yellowDodgeChance + glancingChance + effectiveCrit;
+
+      if (roll < mhWhiteMiss) {
+        abilityStats['Auto-Attack (MH)'].misses++;
+      } else if (roll < mhWhiteMiss + yellowDodgeChance) {
+        abilityStats['Auto-Attack (MH)'].dodges++;
+        overpowerAvailableUntil = time + 5.0;
+      } else if (roll < mhWhiteMiss + yellowDodgeChance + glancingChance) {
+        abilityStats['Auto-Attack (MH)'].glancings++;
+        const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (ap / 14) * mhSpeed;
+        let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty) * dmgMult;
+        if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+        fightDamage += dmg;
+        abilityStats['Auto-Attack (MH)'].damage += dmg;
+        checkTouchOfTheGrave();
+        rage = Math.min(maxRage, rage + mhNormRage);
+      } else if (roll < critThreshold) {
+        abilityStats['Auto-Attack (MH)'].crits++;
+        flurryCharges = 3;
+        triggerDeepWounds(ap);
+        const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (ap / 14) * mhSpeed;
+        let dmg = rawDmg * armorMultiplier * 2.0 * dmgMult;
+        if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+        fightDamage += dmg;
+        abilityStats['Auto-Attack (MH)'].damage += dmg;
+        checkTouchOfTheGrave();
+        rage = Math.min(maxRage, rage + mhCritRage);
+      } else {
+        abilityStats['Auto-Attack (MH)'].hits++;
+        const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (ap / 14) * mhSpeed;
+        let dmg = rawDmg * armorMultiplier * dmgMult;
+        if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+        fightDamage += dmg;
+        abilityStats['Auto-Attack (MH)'].damage += dmg;
+        checkTouchOfTheGrave();
+        rage = Math.min(maxRage, rage + mhNormRage);
+      }
+    };
+
+    const checkExtraAttackProcs = (isMh: boolean, ap: number, crit: number, dmgMult: number) => {
+      if (hasHoj && rng.next() < 0.02) {
+        resolveExtraAttack(ap, crit, dmgMult);
+      }
+      if (isMh && isIronfoe && rng.next() < 0.05) {
+        resolveExtraAttack(ap, crit, dmgMult);
+        resolveExtraAttack(ap, crit, dmgMult);
+      }
+    };
+
     while (time < iterDuration) {
       if (rotation.useDeathWish && talents.deathWish && deathWishActiveUntil < time - 180 && time >= (rotation.deathWishTiming || 0)) {
         if (rage >= 10) {
@@ -548,11 +628,11 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
 
       let currentAp = baseAp;
-      if (crusaderMhActiveUntil > time) currentAp += 100;
-      if (crusaderOhActiveUntil > time) currentAp += 100;
+      const crusaderBonus = buffs.blessingOfKings ? 220 : 200;
+      if (crusaderMhActiveUntil > time) currentAp += crusaderBonus;
+      if (crusaderOhActiveUntil > time) currentAp += crusaderBonus;
       if (mightyRageActiveUntil > time) currentAp += buffs.blessingOfKings ? 132 : 120;
       if (bloodFuryActiveUntil > time) currentAp *= 1.10;
-      if (deathWishActiveUntil > time) currentAp *= 1.20;
 
       let currentHaste = baseHaste;
       if (berserkingActiveUntil > time) currentHaste += 10.0;
@@ -563,10 +643,11 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       if (elunesLightActiveUntil > time) currentCrit += 10.0;
       if (recklessnessActiveUntil > time) currentCrit += 100.0;
 
-      // Eureka Active State
+      // Eureka & Death Wish Damage Multipliers
       const eurekaActive = eurekaActiveUntil > time && eurekaCharges > 0;
       const abilityCostDiscount = eurekaActive ? 5.0 : 0.0;
-      const abilityDmgMult = eurekaActive ? 1.10 : 1.0;
+      const dwDmgMult = deathWishActiveUntil > time ? 1.20 : 1.0;
+      const abilityDmgMult = (eurekaActive ? 1.10 : 1.0) * dwDmgMult;
 
       // Proc Uptime accumulation
       if (crusaderMhActiveUntil > time) totalCrusaderMhTime += timeStep;
@@ -632,8 +713,10 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           fightDamage += opDmg;
           abilityStats['Overpower'].damage += opDmg;
           checkTouchOfTheGrave();
+          if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+          checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
           if (buffs.windfuryTotem && rng.next() < 0.20) {
-            resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
           }
           overpowerAvailableUntil = -1.0;
           gcdTimer = 1.5;
@@ -665,8 +748,10 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             fightDamage += dmg;
             abilityStats['Execute'].damage += dmg;
             checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
             if (buffs.windfuryTotem && rng.next() < 0.20) {
-              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
             }
           }
           gcdTimer = 1.5;
@@ -697,8 +782,10 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             fightDamage += dmg;
             abilityStats['Bloodthirst'].damage += dmg;
             checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
             if (buffs.windfuryTotem && rng.next() < 0.20) {
-              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
             }
           }
           gcdTimer = 1.5;
@@ -721,7 +808,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             const weaponNormSpeed = 2.4;
             const weaponRoll = mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg);
             const rawDmg = weaponRoll + (currentAp / 14) * weaponNormSpeed;
-            let dmg = rawDmg * armorMultiplier * abilityDmgMult * (deathWishActiveUntil > time ? 1.20 : 1.0);
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult;
             if (isCrit) {
               dmg *= impaleCritMult;
               abilityStats['Whirlwind'].crits++;
@@ -734,8 +821,10 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             fightDamage += dmg;
             abilityStats['Whirlwind'].damage += dmg;
             checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
             if (buffs.windfuryTotem && rng.next() < 0.20) {
-              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
             }
           }
 
@@ -752,7 +841,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               const ohNormSpeed = 2.4;
               const ohWeaponRoll = ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg);
               const rawDmg = (ohWeaponRoll + (currentAp / 14) * ohNormSpeed) * dwSpecMult;
-              let dmg = rawDmg * armorMultiplier * abilityDmgMult * (deathWishActiveUntil > time ? 1.20 : 1.0);
+              let dmg = rawDmg * armorMultiplier * abilityDmgMult;
               if (isCrit) {
                 dmg *= impaleCritMult;
                 abilityStats['Whirlwind'].crits++;
@@ -765,6 +854,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               fightDamage += dmg;
               abilityStats['Whirlwind'].damage += dmg;
               checkTouchOfTheGrave();
+              if (rng.next() < (ohSpeed / 60.0)) crusaderOhActiveUntil = time + 15.0;
+              checkExtraAttackProcs(false, currentAp, currentCrit, dwDmgMult);
             }
           }
           gcdTimer = 1.5;
@@ -808,12 +899,19 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             fightDamage += dmg;
             abilityStats['Heroic Strike'].damage += dmg;
             checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
             if (buffs.windfuryTotem && rng.next() < 0.20) {
-              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
             }
           }
         } else {
           const roll = rng.next();
+          const suppressedCrit = Math.max(0, currentCrit - 3.0) / 100.0;
+          const whiteCritCap = Math.max(0, 1.0 - (mhWhiteMiss + yellowDodgeChance + glancingChance));
+          const effectiveCrit = Math.min(whiteCritCap, suppressedCrit);
+          const critThreshold = mhWhiteMiss + yellowDodgeChance + glancingChance + effectiveCrit;
+
           if (roll < mhWhiteMiss) {
             abilityStats['Auto-Attack (MH)'].misses++;
           } else if (roll < mhWhiteMiss + yellowDodgeChance) {
@@ -822,41 +920,43 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           } else if (roll < mhWhiteMiss + yellowDodgeChance + glancingChance) {
             abilityStats['Auto-Attack (MH)'].glancings++;
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
-            let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+            let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty) * dwDmgMult;
             if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
             checkTouchOfTheGrave();
             rage = Math.min(maxRage, rage + mhNormRage);
-          } else {
-            const whiteCritCap = Math.max(0, 1.0 - (mhWhiteMiss + yellowDodgeChance + glancingChance));
-            const effectiveCrit = Math.min(whiteCritCap, currentCrit / 100.0);
-            const isCrit = rng.next() < effectiveCrit;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+          } else if (roll < critThreshold) {
+            abilityStats['Auto-Attack (MH)'].crits++;
+            flurryCharges = 3;
+            triggerDeepWounds(currentAp);
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
-            let dmg = rawDmg * armorMultiplier;
-            if (isCrit) {
-              dmg *= 2.0;
-              abilityStats['Auto-Attack (MH)'].crits++;
-              flurryCharges = 3;
-              triggerDeepWounds(currentAp);
-              rage = Math.min(maxRage, rage + mhCritRage);
-            } else {
-              abilityStats['Auto-Attack (MH)'].hits++;
-              rage = Math.min(maxRage, rage + mhNormRage);
-            }
+            let dmg = rawDmg * armorMultiplier * 2.0 * dwDmgMult;
             if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
             checkTouchOfTheGrave();
+            rage = Math.min(maxRage, rage + mhCritRage);
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+          } else {
+            abilityStats['Auto-Attack (MH)'].hits++;
+            const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
+            let dmg = rawDmg * armorMultiplier * dwDmgMult;
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+            fightDamage += dmg;
+            abilityStats['Auto-Attack (MH)'].damage += dmg;
+            checkTouchOfTheGrave();
+            rage = Math.min(maxRage, rage + mhNormRage);
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
           }
 
           if (buffs.windfuryTotem && roll >= (mhWhiteMiss + yellowDodgeChance) && rng.next() < 0.20) {
-            resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
           }
-        }
-
-        if (rng.next() < (mhSpeed / 60.0)) {
-          crusaderMhActiveUntil = time + 15.0;
         }
 
         if (flurryCharges > 0) flurryCharges--;
@@ -866,45 +966,53 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       // Off Hand Swing (Always suffers dual-wield penalty)
       if (isDualWield && ohTimer <= 0) {
         abilityStats['Auto-Attack (OH)'].casts++;
+        const effectiveOhMiss = hsQueued ? yellowMissChance : ohWhiteMiss;
+        const suppressedCrit = Math.max(0, currentCrit - 3.0) / 100.0;
+        const ohCritCap = Math.max(0, 1.0 - (effectiveOhMiss + yellowDodgeChance + glancingChance));
+        const effectiveCrit = Math.min(ohCritCap, suppressedCrit);
+        const critThreshold = effectiveOhMiss + yellowDodgeChance + glancingChance + effectiveCrit;
+
         const roll = rng.next();
-        if (roll < ohWhiteMiss) {
+        if (roll < effectiveOhMiss) {
           abilityStats['Auto-Attack (OH)'].misses++;
-        } else if (roll < ohWhiteMiss + yellowDodgeChance) {
+        } else if (roll < effectiveOhMiss + yellowDodgeChance) {
           abilityStats['Auto-Attack (OH)'].dodges++;
           overpowerAvailableUntil = time + 5.0;
-        } else if (roll < ohWhiteMiss + yellowDodgeChance + glancingChance) {
+        } else if (roll < effectiveOhMiss + yellowDodgeChance + glancingChance) {
           abilityStats['Auto-Attack (OH)'].glancings++;
           const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
-          let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+          let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty) * dwDmgMult;
           if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
           checkTouchOfTheGrave();
           rage = Math.min(maxRage, rage + ohNormRage);
-        } else {
-          const ohCritCap = Math.max(0, 1.0 - (ohWhiteMiss + yellowDodgeChance + glancingChance));
-          const effectiveCrit = Math.min(ohCritCap, currentCrit / 100.0);
-          const isCrit = rng.next() < effectiveCrit;
+          checkExtraAttackProcs(false, currentAp, currentCrit, dwDmgMult);
+          if (rng.next() < (ohSpeed / 60.0)) crusaderOhActiveUntil = time + 15.0;
+        } else if (roll < critThreshold) {
+          abilityStats['Auto-Attack (OH)'].crits++;
+          flurryCharges = 3;
+          triggerDeepWounds(currentAp);
           const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
-          let dmg = rawDmg * armorMultiplier;
-          if (isCrit) {
-            dmg *= 2.0;
-            abilityStats['Auto-Attack (OH)'].crits++;
-            flurryCharges = 3;
-            triggerDeepWounds(currentAp);
-            rage = Math.min(maxRage, rage + ohCritRage);
-          } else {
-            abilityStats['Auto-Attack (OH)'].hits++;
-            rage = Math.min(maxRage, rage + ohNormRage);
-          }
+          let dmg = rawDmg * armorMultiplier * 2.0 * dwDmgMult;
           if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
           checkTouchOfTheGrave();
-        }
-
-        if (rng.next() < (ohSpeed / 60.0)) {
-          crusaderOhActiveUntil = time + 15.0;
+          rage = Math.min(maxRage, rage + ohCritRage);
+          checkExtraAttackProcs(false, currentAp, currentCrit, dwDmgMult);
+          if (rng.next() < (ohSpeed / 60.0)) crusaderOhActiveUntil = time + 15.0;
+        } else {
+          abilityStats['Auto-Attack (OH)'].hits++;
+          const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
+          let dmg = rawDmg * armorMultiplier * dwDmgMult;
+          if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+          fightDamage += dmg;
+          abilityStats['Auto-Attack (OH)'].damage += dmg;
+          checkTouchOfTheGrave();
+          rage = Math.min(maxRage, rage + ohNormRage);
+          checkExtraAttackProcs(false, currentAp, currentCrit, dwDmgMult);
+          if (rng.next() < (ohSpeed / 60.0)) crusaderOhActiveUntil = time + 15.0;
         }
 
         if (flurryCharges > 0) flurryCharges--;
