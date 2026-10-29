@@ -16,6 +16,7 @@ import {
   PlusCircle,
   ArrowUpDown,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 
 interface SlotTableProps {
@@ -37,18 +38,9 @@ const QUALITY_TEXT_COLORS: Record<ItemQuality, string> = {
   legendary: 'text-[#ff8000] font-semibold',
   epic: 'text-[#a335ee] font-semibold',
   rare: 'text-[#0070dd] font-medium',
-  uncommon: 'text-[#1eff00]',
-  common: 'text-[#e2e2e9]',
-  poor: 'text-[#8e9099]',
-};
-
-const QUALITY_BORDER_COLORS: Record<ItemQuality, string> = {
-  legendary: 'border-[#ff8000]/60',
-  epic: 'border-[#a335ee]/60',
-  rare: 'border-[#0070dd]/60',
-  uncommon: 'border-[#1eff00]/60',
-  common: 'border-[#44474e]/50',
-  poor: 'border-[#44474e]/30',
+  uncommon: 'text-[#1eff00] font-medium',
+  common: 'text-[#000000]',
+  poor: 'text-[#666666]',
 };
 
 export const SlotTable: React.FC<SlotTableProps> = ({
@@ -65,7 +57,6 @@ export const SlotTable: React.FC<SlotTableProps> = ({
   onSimulateAllInSlot,
   onOpenCustomItemModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<'items' | 'enchants'>('items');
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'simDps' | 'name' | 'str' | 'ap' | 'crit'>('simDps');
@@ -111,17 +102,6 @@ export const SlotTable: React.FC<SlotTableProps> = ({
     });
   }, [filteredItems, batchResults, equippedItem, sortBy, sortAsc]);
 
-  // Max DPS Delta for visual bar scale
-  const maxAbsDelta = useMemo(() => {
-    let max = 10;
-    for (const key in batchResults) {
-      const delta = batchResults[key].deltaDps ?? batchResults[key].dpsDelta ?? 0;
-      const abs = Math.abs(delta);
-      if (abs > max) max = abs;
-    }
-    return max;
-  }, [batchResults]);
-
   const toggleSort = (field: 'simDps' | 'name' | 'str' | 'ap' | 'crit') => {
     if (sortBy === field) {
       setSortAsc(!sortAsc);
@@ -137,78 +117,98 @@ export const SlotTable: React.FC<SlotTableProps> = ({
     selectedSlot === 'twohand' ||
     selectedSlot === 'ranged';
 
-  return (
-    <div className="bg-[#191c20] border border-[#44474e]/30 rounded-2xl p-4 shadow-sm flex flex-col h-full">
-      {/* Top Action Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[#44474e]/30">
-        <div className="flex items-center space-x-2.5">
-          <div className="flex bg-[#111318] p-1 rounded-full border border-[#44474e]/40">
-            <button
-              onClick={() => setActiveTab('items')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all ${
-                activeTab === 'items'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9]'
-              }`}
-            >
-              Equipment ({availableItems.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('enchants')}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider flex items-center transition-all ${
-                activeTab === 'enchants'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9]'
-              }`}
-            >
-              <Sparkles className="w-3 h-3 mr-1" />
-              Enchants ({availableEnchants.length})
-            </button>
-          </div>
+  const slotTitle =
+    selectedSlot === 'mainhand'
+      ? 'Main Hand'
+      : selectedSlot === 'offhand'
+      ? 'Off Hand'
+      : selectedSlot === 'twohand'
+      ? 'Two-Hand Weapon'
+      : selectedSlot.charAt(0).toUpperCase() + selectedSlot.slice(1);
 
-          <span className="text-xs font-mono text-[#8e9099] uppercase tracking-widest pl-1">
-            Slot: <span className="text-[#a8c7fa] font-bold">{selectedSlot}</span>
-          </span>
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden pl-3 bg-white text-black">
+      {/* Header Row: Slot Title & Action Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-[#dddddd]">
+        <div>
+          <h2 className="text-xl font-normal text-black capitalize">
+            {slotTitle}
+          </h2>
+          <p className="text-[11px] text-[#666666]">
+            {filteredItems.length} items available &bull; Click any item row to equip
+          </p>
         </div>
 
-        {/* Batch Simulate Button & Custom Item */}
         <div className="flex items-center space-x-2">
+          {/* Simulate All in Slot Button (WrathWarrior style) */}
           <button
             onClick={() => onSimulateAllInSlot(selectedSlot, availableItems)}
             disabled={isSimulating || availableItems.length === 0}
-            className={`flex items-center space-x-1.5 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wider text-white transition-all shadow-sm ${
               isSimulating
-                ? 'bg-[#284777]/50 text-[#8e9099] cursor-not-allowed'
-                : 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#062e6f] hover:scale-[1.02] active:scale-[0.98]'
+                ? 'bg-[#1861ac]/50 cursor-not-allowed'
+                : 'bg-[#1861ac] hover:bg-[#144e8c] active:bg-[#0f3c6d]'
             }`}
           >
-            <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-pulse' : 'text-[#062e6f] fill-current'}`} />
-            <span>{isSimulating ? 'Simulating...' : 'Simulate All in Slot'}</span>
+            <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-pulse' : 'fill-current'}`} />
+            <span>{isSimulating ? 'Simulating...' : 'Batch Sim Slot'}</span>
           </button>
 
+          {/* Import / Custom Item Button */}
           <button
             onClick={onOpenCustomItemModal}
-            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-full text-xs font-medium border border-[#44474e]/50 bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] hover:text-[#e2e2e9] transition-all"
-            title="Import from Wowhead or Create Custom Item"
+            className="flex items-center space-x-1 px-3 py-1.5 rounded text-xs font-semibold border border-[#cccccc] bg-[#f8f9fa] hover:bg-[#eeeeee] text-[#333333] transition-all"
           >
-            <PlusCircle className="w-3.5 h-3.5 text-[#a8c7fa]" />
-            <span className="hidden sm:inline">Import Wowhead / Custom</span>
+            <PlusCircle className="w-3.5 h-3.5 text-[#1861ac]" />
+            <span>+ Import Wowhead / Custom</span>
           </button>
         </div>
       </div>
 
+      {/* Enchant Selector Row (WrathWarrior enchants.css style) */}
+      {availableEnchants.length > 0 && (
+        <div className="flex items-center gap-3 py-2 px-3 bg-[#f8f9fa] border border-[#dddddd] rounded mb-2 text-xs">
+          <span className="font-semibold text-black shrink-0 flex items-center gap-1">
+            <Sparkles className="w-3.5 h-3.5 text-[#1861ac]" />
+            <span>Enchant:</span>
+          </span>
+
+          <select
+            value={equippedEnchant?.id || ''}
+            onChange={(e) => {
+              const ench = availableEnchants.find((en) => en.id === e.target.value);
+              if (ench) onApplyEnchant(selectedSlot, ench);
+            }}
+            className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac] flex-1 max-w-sm"
+          >
+            <option value="">(No enchant applied)</option>
+            {availableEnchants.map((ench) => (
+              <option key={ench.id} value={ench.id}>
+                {ench.name} {ench.description ? `(${ench.description})` : ''}
+              </option>
+            ))}
+          </select>
+
+          {equippedEnchant && (
+            <span className="text-[11px] text-[#26b050] font-semibold">
+              ✓ Active
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Progress Bar during Batch Simulation */}
       {isSimulating && simulationProgress && (
-        <div className="mb-3 bg-[#111318] border border-[#a8c7fa]/40 rounded-xl p-2.5 shadow-sm animate-pulse">
-          <div className="flex justify-between text-xs font-mono mb-1 text-[#d6e3ff]">
-            <span>Evaluating Candidate Items in Slot...</span>
+        <div className="mb-2 bg-[#f0f4f8] border border-[#1861ac] rounded p-2 text-xs">
+          <div className="flex justify-between text-[#1861ac] font-mono font-medium mb-1">
+            <span>Batch Simulating Candidate Items...</span>
             <span>
               {simulationProgress.completed} / {simulationProgress.total} ({simulationProgress.pct}%)
             </span>
           </div>
-          <div className="w-full bg-[#1d2024] rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-[#dddddd] rounded h-1.5 overflow-hidden">
             <div
-              className="bg-[#a8c7fa] h-1.5 rounded-full transition-all duration-150"
+              className="bg-[#1861ac] h-1.5 transition-all duration-150"
               style={{ width: `${simulationProgress.pct}%` }}
             />
           </div>
@@ -216,28 +216,28 @@ export const SlotTable: React.FC<SlotTableProps> = ({
       )}
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-2">
         <div className="relative flex-1 min-w-[160px]">
-          <Search className="w-3.5 h-3.5 text-[#8e9099] absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-[#888888] absolute left-2.5 top-2" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search item name, source, stats..."
-            className="w-full bg-[#111318] border border-[#44474e]/40 rounded-full pl-8 pr-3 py-1.5 text-xs text-[#e2e2e9] placeholder-[#8e9099] focus:outline-none focus:border-[#a8c7fa] font-mono transition-all"
+            placeholder="Search items by name, source..."
+            className="w-full bg-white border border-[#cccccc] rounded pl-8 pr-3 py-1 text-xs text-black placeholder-[#888888] focus:outline-none focus:border-[#1861ac]"
           />
         </div>
 
         <div className="flex items-center space-x-1.5">
-          <Filter className="w-3.5 h-3.5 text-[#8e9099]" />
+          <Filter className="w-3.5 h-3.5 text-[#666666]" />
           <select
             value={phaseFilter}
             onChange={(e) => setPhaseFilter(e.target.value)}
-            className="bg-[#111318] border border-[#44474e]/40 text-[#c4c6d0] text-xs rounded-full px-3 py-1.5 focus:outline-none focus:border-[#a8c7fa] cursor-pointer"
+            className="bg-white border border-[#cccccc] text-[#333333] text-xs rounded px-2.5 py-1 focus:outline-none focus:border-[#1861ac]"
           >
             <option value="all">All Content Phases</option>
-            <option value="WoW: Forever">WoW: Forever (Nov 4 Launch)</option>
-            <option value="Phase 1">Phase 1 (MC / Onyxia / Pre-BiS)</option>
+            <option value="WoW: Forever">WoW: Forever (Launch)</option>
+            <option value="Phase 1">Phase 1 (MC / Onyxia)</option>
             <option value="Phase 3">Phase 3 (BWL)</option>
             <option value="Phase 5">Phase 5 (AQ40)</option>
             <option value="Phase 6">Phase 6 (Naxxramas)</option>
@@ -245,272 +245,171 @@ export const SlotTable: React.FC<SlotTableProps> = ({
         </div>
       </div>
 
-      {/* Main Table Content */}
-      <div className="flex-1 overflow-y-auto border border-[#44474e]/30 rounded-xl bg-[#111318]/60">
-        {activeTab === 'items' ? (
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-[#191c20] text-[#8e9099] uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-[#44474e]/40 font-mono">
+      {/* Main Items Table (WrathWarrior app.css style) */}
+      <div className="flex-1 overflow-y-auto border border-[#dddddd] bg-white">
+        <table className="ww-table w-full text-left text-xs border-collapse">
+          <thead className="sticky top-0 z-10 shadow-sm">
+            <tr>
+              <th className="w-7 text-center"></th>
+              <th
+                onClick={() => toggleSort('name')}
+                className="cursor-pointer hover:underline"
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Name</span>
+                  <ArrowUpDown className="w-3 h-3" />
+                </div>
+              </th>
+              <th className="hidden md:table-cell">Source / Phase</th>
+              {isWeaponSlot && <th>Speed / DPS</th>}
+              <th
+                onClick={() => toggleSort('str')}
+                className="cursor-pointer hover:underline text-right"
+              >
+                Str
+              </th>
+              <th className="text-right">Agi</th>
+              <th className="text-right">Sta</th>
+              <th
+                onClick={() => toggleSort('ap')}
+                className="cursor-pointer hover:underline text-right"
+              >
+                AP
+              </th>
+              <th
+                onClick={() => toggleSort('crit')}
+                className="cursor-pointer hover:underline text-right"
+              >
+                Crit %
+              </th>
+              <th className="text-right">Hit %</th>
+              <th className="text-right text-[#1861ac] font-bold" title="WoW: Forever Off-Hand Hit">
+                OH Hit %
+              </th>
+              <th className="text-right">Haste %</th>
+              <th
+                onClick={() => toggleSort('simDps')}
+                className="cursor-pointer hover:underline text-right font-bold text-[#1861ac]"
+              >
+                SIM DPS
+              </th>
+              <th className="text-right pr-4 font-bold">Δ DPS (BiS)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedItems.length === 0 ? (
               <tr>
-                <th className="p-2 w-8 text-center">Status</th>
-                <th
-                  onClick={() => toggleSort('name')}
-                  className="p-2 cursor-pointer hover:text-[#a8c7fa] transition-colors"
-                >
-                  <div className="flex items-center space-x-1">
-                    <span>Item Name</span>
-                    <ArrowUpDown className="w-3 h-3" />
-                  </div>
-                </th>
-                <th className="p-2 hidden md:table-cell">Source / Phase</th>
-                {isWeaponSlot && <th className="p-2">Speed / DPS</th>}
-                <th
-                  onClick={() => toggleSort('str')}
-                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
-                >
-                  Str
-                </th>
-                <th className="p-2 text-right">Agi</th>
-                <th
-                  onClick={() => toggleSort('ap')}
-                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
-                >
-                  AP
-                </th>
-                <th
-                  onClick={() => toggleSort('crit')}
-                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right"
-                >
-                  Crit
-                </th>
-                <th className="p-2 text-right">Hit</th>
-                <th className="p-2 text-right text-[#a8c7fa]" title="WoW: Forever Off-Hand Hit">
-                  OH Hit
-                </th>
-                <th className="p-2 text-right">Haste</th>
-                <th
-                  onClick={() => toggleSort('simDps')}
-                  className="p-2 cursor-pointer hover:text-[#a8c7fa] text-right font-bold text-[#a8c7fa] bg-[#284777]/20"
-                >
-                  <div className="flex items-center justify-end space-x-1">
-                    <span>SIM DPS</span>
-                    <ArrowUpDown className="w-3 h-3 text-[#a8c7fa]" />
-                  </div>
-                </th>
-                <th className="p-2 text-right pr-4 font-bold">Δ DPS (BiS)</th>
+                <td colSpan={14} className="p-6 text-center text-[#888888] italic">
+                  No items found for slot &quot;{selectedSlot}&quot;.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-[#44474e]/20">
-              {sortedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="p-6 text-center text-[#8e9099] italic">
-                    No items found for slot &quot;{selectedSlot}&quot; with active filters.
-                  </td>
-                </tr>
-              ) : (
-                sortedItems.map((item) => {
-                  const isEquipped = item.id === equippedItem?.id;
-                  const batch = batchResults[item.id];
-                  const quality = item.quality || 'common';
-                  const dpsVal = batch ? (batch.meanDps ?? batch.dps ?? 0) : 0;
-                  const dpsDelta = batch ? (batch.deltaDps ?? batch.dpsDelta ?? 0) : 0;
-                  const isUpgrade = dpsDelta > 0;
-                  const isDowngrade = dpsDelta < 0;
-
-                  return (
-                    <tr
-                      key={item.id}
-                      onClick={() => onEquipItem(selectedSlot, item)}
-                      className={`cursor-pointer transition-colors hover:bg-[#282a2f]/40 ${
-                        isEquipped ? 'bg-[#284777]/20 border-l-2 border-l-[#a8c7fa]' : ''
-                      }`}
-                    >
-                      <td className="p-2 text-center">
-                        {isEquipped ? (
-                          <span
-                            title="Equipped"
-                            className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#284777] text-[#a8c7fa] border border-[#a8c7fa]/40"
-                          >
-                            <Check className="w-3 h-3" />
-                          </span>
-                        ) : (
-                          <span className="w-5 h-5 block" />
-                        )}
-                      </td>
-
-                      <td className="p-2">
-                        <div className="flex items-center space-x-2.5">
-                          <div
-                            className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 text-[10px] bg-[#111318] overflow-hidden ${
-                              QUALITY_BORDER_COLORS[quality]
-                            }`}
-                          >
-                            <img
-                              src={getWowheadIconUrl(item.icon, 'medium')}
-                              alt={item.name}
-                              className="w-full h-full object-cover rounded-md"
-                              onError={(e) => {
-                                (e.target as HTMLElement).style.display = 'none';
-                                const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
-                                if (fallback) fallback.style.display = 'flex';
-                              }}
-                            />
-                            <span className={`${QUALITY_TEXT_COLORS[quality]} hidden items-center justify-center w-full h-full font-bold`}>
-                              {item.name.charAt(0)}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center">
-                              <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
-                              {item.isCustom && (
-                                <span className="ml-1.5 px-1.5 py-0.2 text-[9px] rounded-full bg-[#4f378b] text-[#eddcff] font-mono">
-                                  Custom
-                                </span>
-                              )}
-                              <a
-                                href={getWowheadItemUrl(item)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                title="View on Wowhead"
-                                className="text-[#8e9099] hover:text-[#a8c7fa] inline-flex items-center ml-1.5 transition-colors p-0.5 rounded hover:bg-[#282a2f]"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-2 hidden md:table-cell">
-                        <div className="text-[11px] text-[#8e9099] truncate max-w-[140px]">
-                          {item.source || '-'}
-                        </div>
-                        {item.phase && (
-                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#1d2024] text-[#a8c7fa] font-mono border border-[#44474e]/30">
-                            {item.phase}
-                          </span>
-                        )}
-                      </td>
-
-                      {isWeaponSlot && (
-                        <td className="p-2 font-mono text-[11px] text-[#c4c6d0]">
-                          {item.speed ? `${item.speed}s • ${item.dps} DPS` : '-'}
-                        </td>
-                      )}
-
-                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
-                        {item.str ? `+${item.str}` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
-                        {item.agi ? `+${item.agi}` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
-                        {item.ap ? `+${item.ap}` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#81c995]">
-                        {item.crit ? `+${item.crit}%` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
-                        {item.hit ? `+${item.hit}%` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#a8c7fa] font-bold">
-                        {item.ohHit ? `+${item.ohHit}%` : '-'}
-                      </td>
-                      <td className="p-2 text-right font-mono text-[#c4c6d0]">
-                        {item.haste ? `+${item.haste}%` : '-'}
-                      </td>
-
-                      <td className="p-2 text-right font-mono font-bold text-[#a8c7fa] bg-[#284777]/10">
-                        {batch ? dpsVal.toFixed(1) : '-'}
-                      </td>
-
-                      <td className="p-2 text-right pr-4">
-                        {isEquipped ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40">
-                            Equipped
-                          </span>
-                        ) : batch ? (
-                          <div className="flex items-center justify-end space-x-1.5">
-                            <div className="w-12 h-1.5 bg-[#1d2024] rounded-full overflow-hidden hidden sm:block">
-                              <div
-                                className={`h-full rounded-full ${
-                                  isUpgrade ? 'bg-[#81c995]' : 'bg-[#f28b82]'
-                                }`}
-                                style={{
-                                  width: `${Math.min(100, (Math.abs(dpsDelta) / maxAbsDelta) * 100)}%`,
-                                }}
-                              />
-                            </div>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold ${
-                                isUpgrade
-                                  ? 'bg-[#0f5223] text-[#81c995] border border-[#81c995]/40'
-                                  : isDowngrade
-                                  ? 'bg-[#8c1d18] text-[#f28b82] border border-[#f28b82]/40'
-                                  : 'text-[#8e9099]'
-                              }`}
-                            >
-                              {dpsDelta > 0 ? `+${dpsDelta}` : dpsDelta}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-[#8e9099] font-mono text-[11px]">-</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        ) : (
-          <div className="p-3 space-y-2">
-            {availableEnchants.length === 0 ? (
-              <div className="p-6 text-center text-[#8e9099] italic">
-                No enchants available for {selectedSlot}.
-              </div>
             ) : (
-              availableEnchants.map((ench) => {
-                const isEquippedEnchant = equippedEnchant?.id === ench.id;
+              sortedItems.map((item) => {
+                const isEquipped = item.id === equippedItem?.id;
+                const batch = batchResults[item.id];
+                const quality = item.quality || 'common';
+                const dpsVal = batch ? (batch.meanDps ?? batch.dps ?? 0) : 0;
+                const dpsDelta = batch ? (batch.deltaDps ?? batch.dpsDelta ?? 0) : 0;
+                const isUpgrade = dpsDelta > 0;
+                const isDowngrade = dpsDelta < 0;
+
                 return (
-                  <div
-                    key={ench.id}
-                    onClick={() => onApplyEnchant(selectedSlot, ench)}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
-                      isEquippedEnchant
-                        ? 'bg-[#0f5223]/30 border-[#81c995]/80 ring-1 ring-[#81c995]'
-                        : 'bg-[#191c20] border-[#44474e]/30 hover:border-[#44474e]/70 hover:bg-[#282a2f]/50'
-                    }`}
+                  <tr
+                    key={item.id}
+                    onClick={() => onEquipItem(selectedSlot, item)}
+                    className={`ww-item-row ${isEquipped ? 'equipped' : ''}`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-lg bg-[#0f5223]/40 border border-[#81c995]/40 flex items-center justify-center text-[#81c995]">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-[#81c995]">{ench.name}</div>
-                        <div className="text-xs text-[#c4c6d0] font-mono">
-                          {ench.description || 'Stat upgrade'}
+                    <td className="p-1.5 text-center">
+                      {isEquipped && (
+                        <Check className="w-4 h-4 text-[#1861ac] stroke-[3] inline" />
+                      )}
+                    </td>
+
+                    <td className="p-1.5">
+                      <div className="flex items-center space-x-2">
+                        {/* 26x26 Wowhead Icon */}
+                        <div className="w-6 h-6 rounded border border-[#aaaaaa] shrink-0 overflow-hidden bg-black flex items-center justify-center">
+                          <img
+                            src={getWowheadIconUrl(item.icon, 'small')}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center">
+                          <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
+                          {item.isCustom && (
+                            <span className="ml-1 px-1 py-0.2 text-[9px] rounded bg-[#4f378b] text-white font-mono">
+                              Custom
+                            </span>
+                          )}
+                          <a
+                            href={getWowheadItemUrl(item)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="View on Wowhead"
+                            className="text-[#666666] hover:text-[#1861ac] inline-flex items-center ml-1 p-0.5"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
                         </div>
                       </div>
-                    </div>
+                    </td>
 
-                    <div>
-                      {isEquippedEnchant ? (
-                        <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#0f5223] text-[#81c995] border border-[#81c995]/50">
-                          Active
+                    <td className="p-1.5 hidden md:table-cell text-[11px] text-[#555555]">
+                      {item.source || item.phase || '-'}
+                    </td>
+
+                    {isWeaponSlot && (
+                      <td className="p-1.5 font-mono text-[11px] text-[#444444]">
+                        {item.speed ? `${item.speed}s • ${item.dps} DPS` : '-'}
+                      </td>
+                    )}
+
+                    <td className="p-1.5 text-right font-mono">{item.str || '-'}</td>
+                    <td className="p-1.5 text-right font-mono">{item.agi || '-'}</td>
+                    <td className="p-1.5 text-right font-mono">{item.sta || '-'}</td>
+                    <td className="p-1.5 text-right font-mono font-medium">{item.ap || '-'}</td>
+                    <td className="p-1.5 text-right font-mono">{item.crit ? `${item.crit}%` : '-'}</td>
+                    <td className="p-1.5 text-right font-mono">{item.hit ? `${item.hit}%` : '-'}</td>
+                    <td className="p-1.5 text-right font-mono text-[#1861ac] font-bold">
+                      {item.ohHit ? `+${item.ohHit}%` : '-'}
+                    </td>
+                    <td className="p-1.5 text-right font-mono">{item.haste ? `${item.haste}%` : '-'}</td>
+
+                    <td className="p-1.5 text-right font-mono font-bold text-[#1861ac]">
+                      {batch ? dpsVal.toFixed(1) : '-'}
+                    </td>
+
+                    <td className="p-1.5 text-right pr-4 font-mono font-bold">
+                      {isEquipped ? (
+                        <span className="text-[#1861ac] text-[11px]">Equipped</span>
+                      ) : batch ? (
+                        <span
+                          className={
+                            isUpgrade
+                              ? 'text-[#26b050]'
+                              : isDowngrade
+                              ? 'text-red-600'
+                              : 'text-[#666666]'
+                          }
+                        >
+                          {dpsDelta > 0 ? `+${dpsDelta}` : dpsDelta}
                         </span>
                       ) : (
-                        <button className="px-3 py-1 rounded-full text-xs font-medium bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] border border-[#44474e]/40">
-                          Apply Enchant
-                        </button>
+                        <span className="text-[#999999]">-</span>
                       )}
-                    </div>
-                  </div>
+                    </td>
+                  </tr>
                 );
               })
             )}
-          </div>
-        )}
+          </tbody>
+        </table>
       </div>
     </div>
   );

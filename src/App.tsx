@@ -27,7 +27,6 @@ import {
   getItemById,
 } from './data/items';
 import {
-  ENCHANTS_DATABASE,
   getEnchantsForSlot,
   getEnchantById,
 } from './data/enchants';
@@ -47,20 +46,16 @@ import {
   runStatWeights,
 } from './workers/simRunner';
 import {
-  Shield,
-  Sparkles,
-  BarChart3,
+  Swords,
   Sliders,
-  Award,
-  ChevronDown,
-  Users,
+  BarChart3,
+  Play,
+  Sparkles,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<
-    'bis' | 'talents' | 'buffs' | 'rotation' | 'analytics'
-  >('bis');
+  // Navigation State: 'gear' | 'settings' | 'results'
+  const [activeTab, setActiveTab] = useState<'gear' | 'settings' | 'results'>('gear');
 
   // Currently selected equipment slot in Paper-Doll
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot>('mainhand');
@@ -166,6 +161,8 @@ export const App: React.FC = () => {
     targetArmor: 4691,
     durationSec: 60,
     duration: 60,
+    durationVariance: 5,
+    durationVariationSec: 5,
     executePhasePct: 20,
     executePercentage: 20,
     targets: 1,
@@ -188,8 +185,6 @@ export const App: React.FC = () => {
     pct: number;
   } | null>(null);
 
-  const [engineMode] = useState<'wasm' | 'native' | 'ts'>('wasm');
-
   // Build Full SimConfig object
   const currentSimConfig = useMemo<SimConfig>(() => {
     const itemsList: ItemStats[] = Object.values(gear).filter(Boolean) as ItemStats[];
@@ -211,7 +206,7 @@ export const App: React.FC = () => {
       rotation,
       encounter,
       gear,
-      iterations: 2500,
+      iterations: encounter.iterations || 2500,
     };
   }, [encounter, gear, enchants, talents, buffs, rotation, race]);
 
@@ -250,7 +245,6 @@ export const App: React.FC = () => {
     if (preset.talents) setTalents(preset.talents);
     if (preset.buffs) {
       const clean = { ...preset.buffs };
-      // disable world buffs
       clean.rallyingCryOfDragonslayer = false;
       clean.songflowerSerenade = false;
       clean.warchiefsBlessing = false;
@@ -277,7 +271,7 @@ export const App: React.FC = () => {
   const handleSimulate = async () => {
     setIsSimulating(true);
     try {
-      const res = await runSimulation(currentSimConfig, 2500);
+      const res = await runSimulation(currentSimConfig, encounter.iterations || 2500);
       setSimResult(res);
     } catch (err) {
       console.error('Simulation error:', err);
@@ -287,7 +281,7 @@ export const App: React.FC = () => {
   };
 
   // Run Stat Weights
-  const handleCalculateWeights = async () => {
+  const handleCalculateStatWeights = async () => {
     setIsCalculatingWeights(true);
     try {
       const res = await runStatWeights(currentSimConfig, 1500, (completed, total) => {
@@ -432,174 +426,227 @@ export const App: React.FC = () => {
     return getEnchantsForSlot(selectedSlot);
   }, [selectedSlot]);
 
-  // Current active race details
-  const activeRaceInfo = useMemo(() => {
-    const norm = String(race).toLowerCase().replace(/[^a-z]/g, '');
-    return WOW_FOREVER_RACES.find((r) => r.id.toLowerCase().replace(/[^a-z]/g, '') === norm) || WOW_FOREVER_RACES[0];
-  }, [race]);
-
   return (
-    <div className="min-h-screen bg-[#111318] text-[#e2e2e9] flex flex-col font-sans selection:bg-[#284777] selection:text-[#d6e3ff]">
-      {/* Google Material Design 3 Top Bar */}
-      <header className="border-b border-[#44474e]/40 bg-[#191c20]/95 backdrop-blur-md sticky top-0 z-40 px-4 py-2.5 shadow-sm">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#284777] text-[#a8c7fa] flex items-center justify-center font-black text-xl shadow-sm border border-[#a8c7fa]/30">
-              ⚔️
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <h1 className="text-sm font-bold tracking-tight text-[#e2e2e9]">
-                  WoW: Forever <span className="text-[#a8c7fa]">Fury Warrior BiS Sim</span>
-                </h1>
-                <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 uppercase tracking-wider">
-                  Level 60 Launch
-                </span>
-              </div>
-              <p className="text-[11px] text-[#8e9099] font-mono">
-                Sub-millisecond Rust Monte Carlo Engine &bull; Google Material Design 3
-              </p>
-            </div>
-          </div>
-
-          {/* Quick Race Selector Chip */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={activeRaceInfo.id}
-                onChange={(e) => setRace(e.target.value as Race)}
-                className="appearance-none bg-[#1d2024] border border-[#44474e]/50 hover:border-[#a8c7fa] text-[#d6e3ff] text-xs rounded-full pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#a8c7fa] cursor-pointer transition-all font-medium"
-                title={`Active Racials: ${activeRaceInfo.racialsSummary}`}
-              >
-                {WOW_FOREVER_RACES.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name} ({r.faction}) &bull; {r.keyPerk}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-3.5 h-3.5 text-[#a8c7fa] absolute right-2.5 top-2.5 pointer-events-none" />
-            </div>
-          </div>
-
-          {/* Segmented Pill Navigation Tabs */}
-          <nav className="flex bg-[#111318] p-1 rounded-full border border-[#44474e]/40 text-xs font-semibold">
-            <button
-              onClick={() => setActiveTab('bis')}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
-                activeTab === 'bis'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Gear &amp; BiS</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('talents')}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
-                activeTab === 'talents'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
-              }`}
-            >
-              <Award className="w-3.5 h-3.5" />
-              <span>Talents</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('buffs')}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
-                activeTab === 'buffs'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Raid Buffs &amp; Consumables</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('rotation')}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
-                activeTab === 'rotation'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Priority &amp; Spell Analyzer</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full transition-all ${
-                activeTab === 'analytics'
-                  ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40 shadow-sm'
-                  : 'text-[#8e9099] hover:text-[#e2e2e9] hover:bg-[#1d2024]'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Analytics</span>
-            </button>
-          </nav>
+    <div className="flex h-screen w-screen overflow-hidden bg-white text-black font-sans selection:bg-[#aac7fb] selection:text-black">
+      {/* Column 1: 80px Left Icon Navigation Bar (NavMenu.razor) */}
+      <aside className="ww-nav-sidebar shrink-0 flex flex-col items-center py-4 select-none text-white">
+        {/* Brand / Logo */}
+        <div className="w-12 h-12 rounded bg-white/20 flex items-center justify-center font-black text-xl mb-6 shadow">
+          WF
         </div>
-      </header>
 
-      {/* Main Container */}
-      <main className="max-w-7xl mx-auto w-full p-4 flex-1 flex flex-col md:flex-row gap-4 overflow-hidden">
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {activeTab === 'bis' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full">
-              <div className="lg:col-span-5 h-[760px] lg:h-full">
-                <PaperDoll
-                  gear={gear}
-                  enchants={enchants}
-                  selectedSlot={selectedSlot}
-                  onSelectSlot={setSelectedSlot}
-                  onUnequip={handleUnequip}
-                  currentPresetId={currentPresetId}
-                  onSelectPreset={handleSelectPreset}
-                  presets={PRESETS}
-                />
-              </div>
+        {/* Navigation Icon Buttons */}
+        <div className="flex flex-col items-center gap-3 w-full px-2">
+          {/* Gear Tab */}
+          <button
+            onClick={() => setActiveTab('gear')}
+            title="Equipment & BiS Calculator (Index)"
+            className={`w-14 h-14 rounded flex flex-col items-center justify-center gap-1 transition-colors ${
+              activeTab === 'gear'
+                ? 'bg-white/25 text-white font-bold shadow-inner'
+                : 'text-[#d7d7d7] hover:bg-white/10'
+            }`}
+          >
+            <Swords className="w-5 h-5" />
+            <span className="text-[10px] uppercase font-semibold">Gear</span>
+          </button>
 
-              <div className="lg:col-span-7 h-[760px] lg:h-full">
-                <SlotTable
-                  selectedSlot={selectedSlot}
-                  equippedItem={gear[selectedSlot] || null}
-                  equippedEnchant={enchants[selectedSlot] || null}
-                  availableItems={slotItems}
-                  availableEnchants={slotEnchants}
-                  batchResults={batchResults}
-                  isSimulating={isSimulating}
-                  simulationProgress={simulationProgress}
-                  onEquipItem={handleEquipItem}
-                  onApplyEnchant={handleApplyEnchant}
-                  onSimulateAllInSlot={handleSimulateAllInSlot}
-                  onOpenCustomItemModal={() => setIsCustomModalOpen(true)}
-                />
-              </div>
-            </div>
-          )}
+          {/* Settings Tab */}
+          <button
+            onClick={() => setActiveTab('settings')}
+            title="Settings: Encounter, Buffs, Talents, Rotation"
+            className={`w-14 h-14 rounded flex flex-col items-center justify-center gap-1 transition-colors ${
+              activeTab === 'settings'
+                ? 'bg-white/25 text-white font-bold shadow-inner'
+                : 'text-[#d7d7d7] hover:bg-white/10'
+            }`}
+          >
+            <Sliders className="w-5 h-5" />
+            <span className="text-[10px] uppercase font-semibold">Settings</span>
+          </button>
 
-          {activeTab === 'talents' && (
-            <div className="h-full">
-              <TalentTree talents={talents} onChange={setTalents} />
-            </div>
-          )}
+          {/* Results Tab */}
+          <button
+            onClick={() => setActiveTab('results')}
+            title="Simulation Analytics & Breakdown (Results)"
+            className={`w-14 h-14 rounded flex flex-col items-center justify-center gap-1 transition-colors ${
+              activeTab === 'results'
+                ? 'bg-white/25 text-white font-bold shadow-inner'
+                : 'text-[#d7d7d7] hover:bg-white/10'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] uppercase font-semibold">Results</span>
+          </button>
+        </div>
 
-          {activeTab === 'buffs' && (
-            <div className="h-full">
-              <BuffsPanel
-                buffs={buffs}
-                encounter={encounter}
-                race={race}
-                onBuffChange={setBuffs}
-                onEncounterChange={setEncounter}
-                onRaceChange={setRace}
+        {/* Quick Sim Button at bottom of 80px Nav */}
+        <div className="mt-auto flex flex-col items-center">
+          <button
+            onClick={handleSimulate}
+            disabled={isSimulating}
+            title="Run Quick Simulation"
+            className="w-14 h-14 rounded bg-[#e74c3c] hover:bg-[#c0392b] text-white flex flex-col items-center justify-center gap-0.5 shadow-md transition-all active:scale-95 disabled:opacity-50 font-bold text-xs"
+          >
+            <Play className="w-5 h-5 fill-white" />
+            <span>Sim</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Column 2: 310px Persistent Stats Summary Sidebar */}
+      <div className="ww-summary-sidebar shrink-0 h-full overflow-y-auto">
+        <StatsSidebar
+          stats={characterSheet}
+          simResult={simResult}
+          statWeights={statWeights}
+          talents={talents}
+          isSimulating={isSimulating}
+          isCalculatingWeights={isCalculatingWeights}
+          onSimulate={handleSimulate}
+          onCalculateWeights={handleCalculateStatWeights}
+          race={race}
+          presets={PRESETS}
+          currentPresetId={currentPresetId}
+          onSelectPreset={handleSelectPreset}
+        />
+      </div>
+
+      {/* Column 3: Main Working Area */}
+      <main className="flex-1 h-full overflow-y-auto bg-white p-6">
+        {/* Tab 1: Gear (Index.razor) */}
+        {activeTab === 'gear' && (
+          <div className="flex h-full gap-6">
+            <div className="w-[280px] shrink-0 h-full">
+              <PaperDoll
+                gear={gear}
+                enchants={enchants}
+                selectedSlot={selectedSlot}
+                onSelectSlot={setSelectedSlot}
+                onUnequip={handleUnequip}
+                currentPresetId={currentPresetId}
+                onSelectPreset={handleSelectPreset}
+                presets={PRESETS}
               />
             </div>
-          )}
 
-          {activeTab === 'rotation' && (
-            <div className="h-full">
+            <div className="flex-1 min-w-0 h-full">
+              <SlotTable
+                selectedSlot={selectedSlot}
+                equippedItem={gear[selectedSlot] || null}
+                equippedEnchant={enchants[selectedSlot] || null}
+                availableItems={slotItems}
+                availableEnchants={slotEnchants}
+                batchResults={batchResults}
+                isSimulating={isSimulating}
+                simulationProgress={simulationProgress}
+                onEquipItem={handleEquipItem}
+                onApplyEnchant={handleApplyEnchant}
+                onSimulateAllInSlot={handleSimulateAllInSlot}
+                onOpenCustomItemModal={() => setIsCustomModalOpen(true)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Settings (Settings.razor) */}
+        {activeTab === 'settings' && (
+          <div className="space-y-8 max-w-6xl">
+            {/* 1. Simulation & Encounter Settings Bar */}
+            <div className="bg-[#eeeeee] p-4 border border-[#d5d5d5] rounded">
+              <div className="text-xs font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b border-[#cccccc]">
+                Simulation &amp; Encounter Settings
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Race</label>
+                  <select
+                    value={race}
+                    onChange={(e) => setRace(e.target.value as Race)}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac]"
+                  >
+                    {WOW_FOREVER_RACES.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} ({r.faction})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Fight Length (s)</label>
+                  <input
+                    type="number"
+                    value={encounter.durationSec || encounter.duration || 60}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, durationSec: val, duration: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Variation (±s)</label>
+                  <input
+                    type="number"
+                    value={encounter.durationVariance ?? encounter.durationVariationSec ?? 5}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, durationVariance: val, durationVariationSec: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Iterations</label>
+                  <input
+                    type="number"
+                    step={500}
+                    value={encounter.iterations || 2500}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, iterations: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Target Level</label>
+                  <input
+                    type="number"
+                    value={encounter.bossLevel || encounter.targetLevel || 63}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, bossLevel: val, targetLevel: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Target Armor</label>
+                  <input
+                    type="number"
+                    step={100}
+                    value={encounter.bossArmor || encounter.targetArmor || 4691}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, bossArmor: val, targetArmor: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Rotation, Cooldowns & Priority Analyzer */}
+            <div>
+              <div className="text-sm font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b-2 border-black">
+                Rotation, Cooldowns &amp; Priority Analyzer
+              </div>
               <RotationPanel
                 rotation={rotation}
                 onChange={setRotation}
@@ -609,30 +656,73 @@ export const App: React.FC = () => {
                 talents={talents}
               />
             </div>
-          )}
 
-          {activeTab === 'analytics' && (
-            <div className="h-full">
-              <AnalyticsPanel simResult={simResult} />
+            {/* 3. Raid Buffs & Consumables */}
+            <div>
+              <div className="text-sm font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b-2 border-black">
+                Raid Buffs &amp; Consumables
+              </div>
+              <BuffsPanel
+                buffs={buffs}
+                encounter={encounter}
+                race={race}
+                onBuffChange={setBuffs}
+                onEncounterChange={setEncounter}
+                onRaceChange={setRace}
+              />
             </div>
-          )}
-        </div>
 
-        {/* Right Sidebar */}
-        <div className="w-full md:w-80 lg:w-96 shrink-0 h-[680px] md:h-full">
-          <StatsSidebar
-            stats={characterSheet}
-            simResult={simResult}
-            statWeights={statWeights}
-            talents={talents}
-            isSimulating={isSimulating}
-            isCalculatingWeights={isCalculatingWeights}
-            onSimulate={handleSimulate}
-            onCalculateWeights={handleCalculateWeights}
-            engineMode={engineMode}
-            race={race}
-          />
-        </div>
+            {/* 4. Talents (Arms / Fury / Protection 3-Column Grid) */}
+            <div>
+              <div className="text-sm font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b-2 border-black">
+                Talents
+              </div>
+              <TalentTree talents={talents} onChange={setTalents} />
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Results (Results.razor) */}
+        {activeTab === 'results' && (
+          <div className="space-y-6">
+            {/* Top Bar with Run Simulation and Calculate Stat Weights */}
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-[#eeeeee] border border-[#d5d5d5] rounded">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSimulate}
+                  disabled={isSimulating}
+                  className="bg-[#1861ac] hover:bg-[#144e8c] text-white px-5 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow transition-all disabled:opacity-50"
+                >
+                  <Play className="w-4 h-4 fill-white" />
+                  <span>{isSimulating ? 'Simulating...' : 'Run Simulation'}</span>
+                </button>
+
+                <button
+                  onClick={handleCalculateStatWeights}
+                  disabled={isCalculatingWeights || isSimulating}
+                  className="bg-white hover:bg-[#f5f5f5] text-black border border-[#aaaaaa] px-4 py-2 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4 text-[#1861ac]" />
+                  <span>{isCalculatingWeights ? 'Calculating EP...' : 'Calculate Stat Weights (EP)'}</span>
+                </button>
+              </div>
+
+              {/* Stat Weights Summary Strip */}
+              {statWeights && statWeights.weights && (
+                <div className="flex flex-wrap items-center gap-4 text-xs font-mono bg-white px-3 py-1.5 border border-[#cccccc] rounded">
+                  <span className="font-bold text-black uppercase">Stat Weights (EP):</span>
+                  {statWeights.weights.map((w) => (
+                    <span key={w.stat}>
+                      {w.label || w.name || w.stat} = <strong>{(w.normalized ?? w.dpsPerPoint ?? w.value ?? 1).toFixed(2)}</strong>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <AnalyticsPanel simResult={simResult} />
+          </div>
+        )}
       </main>
 
       {/* Custom Item Modal */}

@@ -3,71 +3,130 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    color-scheme: dark;
-    --md-sys-color-background: #111318;
-    --md-sys-color-surface: #111318;
-    --md-sys-color-surface-container: #1d2024;
-    --md-sys-color-primary: #a8c7fa;
-  }
-
   body {
-    @apply bg-[#111318] text-[#e2e2e9] font-sans antialiased;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    background-color: #111318;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(40, 71, 119, 0.12) 0px, transparent 40%),
-      radial-gradient(at 100% 100%, rgba(62, 71, 89, 0.12) 0px, transparent 40%);
+    @apply bg-white text-black font-sans antialiased;
+    font-family: 'Red Hat Display', sans-serif;
   }
 
-  /* Material 3 Sleek Scrollbars */
+  /* Sleek custom scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #111318;
+    background: #f1f1f1;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #282a2f;
-    border-radius: 9999px;
+    background: #cccccc;
+    border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #33353a;
+    background: #999999;
   }
 }
 
-/* Material 3 Tonal Card and Chip utilities */
+/* WrathWarrior Exact Utility Classes */
 @layer components {
-  .m3-card {
-    @apply bg-[#1d2024] border border-[#44474e]/40 rounded-2xl shadow-sm transition-all;
+  .ww-nav-sidebar {
+    width: 80px;
+    background: linear-gradient(180deg, #1861ac 0%, #144e8c 100%);
   }
 
-  .m3-card-subtle {
-    @apply bg-[#191c20] border border-[#44474e]/30 rounded-2xl;
+  .ww-summary-sidebar {
+    width: 310px;
+    background-color: #eeeeee;
+    color: #000000;
+    border-right: 1px solid #d5d5d5;
   }
 
-  .m3-card-high {
-    @apply bg-[#282a2f] border border-[#44474e]/50 rounded-2xl shadow-md;
+  .ww-table thead th,
+  .ww-table thead td {
+    border-top: 2px solid #000000;
+    border-bottom: 2px solid #000000;
+    font-weight: 600;
+    color: #000000;
+    background: #ffffff;
+    padding: 8px 6px;
   }
 
-  .m3-pill-btn {
-    @apply rounded-full px-4 py-2 font-medium text-xs transition-all flex items-center justify-center gap-2;
+  .ww-item-row {
+    border-bottom: 1px solid #dddddd;
+    cursor: pointer;
+    transition: background-color 0.1s;
   }
 
-  .m3-chip {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-[#44474e]/40 bg-[#1d2024] text-[#c4c6d0] transition-all select-none;
+  .ww-item-row:hover {
+    background-color: #aac7fb;
   }
 
-  .m3-chip-selected {
-    @apply bg-[#284777] border-[#a8c7fa]/60 text-[#d6e3ff] shadow-sm;
+  .ww-item-row.equipped {
+    background-color: #aac7fb;
+    border-bottom: 1px solid #000000;
+    font-weight: 500;
+  }
+
+  .ww-result-row {
+    border-bottom: 1px solid #aaaaaa;
+    transition: background-color 0.1s;
+  }
+
+  .ww-result-row:hover {
+    background-color: #f8b195;
+  }
+
+  .ww-icon-40 {
+    width: 40px;
+    height: 40px;
+    border: 2px solid #aaaaaa;
+    cursor: pointer;
+    object-fit: cover;
+  }
+
+  .ww-grayscale {
+    filter: grayscale(0.9);
+    opacity: 0.65;
+  }
+
+  .ww-inline-input {
+    width: 48px;
+    text-align: center;
+    font-weight: 600;
+    border-bottom: 1px solid #000000;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    background: transparent;
+    color: #000000;
+    outline: none;
+  }
+
+  .ww-talent-badge {
+    background-color: #000000;
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+    font-size: 10px;
+    padding: 0 4px;
+    line-height: 14px;
+    font-weight: 700;
+  }
+
+  .ww-talent-orange {
+    color: #ff9800;
+  }
+
+  .ww-talent-green {
+    color: #4caf50;
+  }
+
+  .ww-talent-muted {
+    color: #888888;
   }
 }
 
-/* WoW Quality Colors (Retained for item gear rarity) */
+/* WoW Quality Colors */
 .text-quality-legendary {
   color: #ff8000;
 }
@@ -81,7 +140,7 @@
   color: #1eff00;
 }
 .text-quality-common {
-  color: #e2e2e9;
+  color: #000000;
 }
 
 .border-quality-legendary {
@@ -97,24 +156,5 @@
   border-color: #1eff00;
 }
 .border-quality-common {
-  border-color: #44474e;
-}
-
-/* Material 3 Range Slider Styling */
-input[type="range"] {
-  @apply accent-[#a8c7fa] bg-[#282a2f] rounded-full h-1.5;
-}
-
-/* Animations */
-@keyframes pulse-subtle {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.65;
-  }
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border-color: #cccccc;
 }
