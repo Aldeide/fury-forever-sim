@@ -282,7 +282,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     // Normalized rage formula
     let mh_norm_rage = mh_weapon.speed * if has_offhand { 3.46 } else { 4.50 };
     let oh_norm_rage = if let Some(ref oh) = oh_weapon_opt {
-        oh.speed * 1.73
+        oh.speed * 1.73 * (1.0 + 0.05 * (config.talents.dual_wield_specialization as f64))
     } else {
         0.0
     };
@@ -309,7 +309,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     armor_reduction_flat += (config.buffs.annihilator_stacks as f64 * 200.0).min(600.0);
 
     let effective_boss_armor = (boss_armor - armor_reduction_flat).max(0.0);
-    let armor_reduction_pct = (effective_boss_armor / (effective_boss_armor + 5500.0)) * 100.0;
+    let armor_reduction_pct = (effective_boss_armor / (effective_boss_armor + 5755.0)) * 100.0;
 
     // Retained stance rage: 10 baseline + 5 per point in Improved Tactical Mastery
     let retained_stance_rage = 10.0 + 5.0 * (config.talents.improved_tactical_mastery as f64).min(3.0);

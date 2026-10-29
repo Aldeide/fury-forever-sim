@@ -129,6 +129,24 @@ export const BUFFS_DATABASE: BuffDefinition[] = [
     defaultValue: true,
     type: 'boolean',
   },
+  {
+    id: 'goblinSapper',
+    name: 'Goblin Sapper Charge',
+    category: 'consumable',
+    icon: 'spell_fire_selfdestruct',
+    description: 'Explodes for 450 to 750 Fire damage to all nearby targets (5 min cooldown)',
+    defaultValue: true,
+    type: 'boolean',
+  },
+  {
+    id: 'denseDynamite',
+    name: 'Dense Dynamite',
+    category: 'consumable',
+    icon: 'inv_misc_bomb_06',
+    description: 'Deals 340 to 460 Fire damage in target area (1 min cooldown)',
+    defaultValue: true,
+    type: 'boolean',
+  },
 
   // ==========================================
   // WEAPON TEMPORARY ENHANCEMENTS
@@ -349,6 +367,15 @@ export const BUFFS_DATABASE: BuffDefinition[] = [
     max: 3,
     step: 1,
   },
+  {
+    id: 'giftOfArthas',
+    name: 'Gift of Arthas',
+    category: 'debuff',
+    icon: 'spell_shadow_fingerofdeath',
+    description: 'Increases physical damage taken by 8 on every physical hit (Debuff)',
+    defaultValue: true,
+    type: 'boolean',
+  },
 ];
 
 export function getBuffsByCategory(category: BuffDefinition['category']): BuffDefinition[] {
@@ -384,6 +411,8 @@ export const DEFAULT_BUFF_CONFIG: BuffConfig = {
   roids: false,
   roidCombat: false,
   mightyRagePotion: true,
+  goblinSapper: true,
+  denseDynamite: true,
 
   // Weapon Enhancements
   windfuryTotem: true,
@@ -419,4 +448,5 @@ export const DEFAULT_BUFF_CONFIG: BuffConfig = {
   annihilatorStacks: 3,
   annihilator: 3,
   improvedExposeArmor: 0,
+  giftOfArthas: true,
 };

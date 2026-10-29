@@ -64,6 +64,40 @@ pub struct TalentConfig {
     pub bloodthirst: u8,            // Row 7 (0..1 -> 45% AP instant attack, 30 rage, 6s CD)
 }
 
+fn deserialize_bool_or_number<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Visitor;
+    struct BoolOrNumberVisitor;
+
+    impl<'de> Visitor<'de> for BoolOrNumberVisitor {
+        type Value = bool;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("a boolean or a number")
+        }
+
+        fn visit_bool<E>(self, v: bool) -> Result<bool, E> {
+            Ok(v)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<bool, E> {
+            Ok(v > 0)
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<bool, E> {
+            Ok(v > 0)
+        }
+
+        fn visit_f64<E>(self, v: f64) -> Result<bool, E> {
+            Ok(v > 0.0)
+        }
+    }
+
+    deserializer.deserialize_any(BoolOrNumberVisitor)
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct BuffConfig {
@@ -91,10 +125,17 @@ pub struct BuffConfig {
     pub dense_weightstone_mh: bool, // +8 weapon dmg
     pub dense_weightstone_oh: bool, // +8 weapon dmg
     pub mighty_rage_potion: bool,   // +60 rage & +60 Str for 20s during Execute / Death Wish
+    #[serde(deserialize_with = "deserialize_bool_or_number", default)]
     pub sunder_armor: bool,         // -2250 boss armor
+    #[serde(deserialize_with = "deserialize_bool_or_number", default)]
     pub faerie_fire: bool,          // -505 boss armor
+    #[serde(deserialize_with = "deserialize_bool_or_number", default)]
     pub curse_of_recklessness: bool,// -640 boss armor
     pub annihilator_stacks: u8,     // 0..3 (-200 armor per stack)
+    #[serde(deserialize_with = "deserialize_bool_or_number", default)]
+    pub gift_of_arthas: bool,       // +8 flat physical damage on hit
+    pub goblin_sapper: bool,        // 450-750 fire dmg explosive
+    pub dense_dynamite: bool,       // 340-460 fire dmg explosive
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -147,7 +188,7 @@ impl Default for RotationConfig {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct EncounterConfig {
     pub boss_level: u32,            // default 63
@@ -158,6 +199,23 @@ pub struct EncounterConfig {
     pub targets: u32,               // default 1
     pub iterations: u32,            // default 10000
     pub seed: u64,
+    pub starting_rage: f64,         // default 50.0
+}
+
+impl Default for EncounterConfig {
+    fn default() -> Self {
+        Self {
+            boss_level: 63,
+            boss_armor: 3731.0,
+            duration_sec: 60.0,
+            duration_variation_sec: 5.0,
+            execute_phase_pct: 20.0,
+            targets: 1,
+            iterations: 10000,
+            seed: 0,
+            starting_rage: 50.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]

@@ -51,6 +51,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   const sta = stats.totalSta ?? stats.sta ?? 0;
   const armor = stats.armor || 2500;
   const haste = stats.hastePct ?? stats.haste ?? 0;
+  const health = 1689 + Math.max(0, (sta || 350) - 20) * 10 + 20;
 
   // Attack Table Calculations
   const yellowMiss = stats.yellowMissPct ?? Math.max(0, +((mhSkill >= 305 ? 6.0 : 8.0) - hit).toFixed(2));
@@ -59,6 +60,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   const dodgeChance = 6.5;
   const glancingChance = 40.0;
   const mhCritCap = stats.mhCritCap ?? 45.0;
+  const critOverCap = +(crit - Number(mhCritCap)).toFixed(2);
 
   // Active race details
   const normalizedRaceKey = String(race).toLowerCase().replace(/[^a-z]/g, '');
@@ -131,6 +133,10 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
       {/* Core Attributes */}
       <div className="space-y-1 pb-3 border-b border-[#cccccc] mb-3">
         <div className="flex justify-between py-0.5">
+          <span className="text-[#333333]">Health</span>
+          <span className="font-semibold text-black">{health}</span>
+        </div>
+        <div className="flex justify-between py-0.5">
           <span className="text-[#333333]">Strength</span>
           <span className="font-semibold text-black">{str}</span>
         </div>
@@ -156,7 +162,9 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
       <div className="space-y-1 pb-3 border-b border-[#cccccc] mb-3">
         <div className="flex justify-between py-0.5">
           <span className="text-[#333333]">Melee Critical Chance (%)</span>
-          <span className="font-bold text-black">{crit.toFixed(2)}%</span>
+          <span className="font-bold text-black">
+            {crit.toFixed(2)}% ({Math.max(0, crit - 3.0).toFixed(2)}%)
+          </span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#333333]">Hit Chance (%)</span>
@@ -209,7 +217,14 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">MH White Crit Cap</span>
-          <span className="text-black font-mono">{mhCritCap}%</span>
+          <span className="text-black font-mono">
+            {mhCritCap}%
+            {critOverCap > 0 ? (
+              <span className="text-[#d93025] font-bold ml-1">(Over by {critOverCap.toFixed(2)}%)</span>
+            ) : (
+              <span className="text-[#26b050] ml-1">(Under by {Math.abs(critOverCap).toFixed(2)}%)</span>
+            )}
+          </span>
         </div>
       </div>
 

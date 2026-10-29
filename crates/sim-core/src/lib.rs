@@ -73,6 +73,7 @@ mod tests {
                 targets: 1,
                 iterations: 50,
                 seed: 12345,
+                starting_rage: 50.0,
             },
         }
     }
@@ -104,8 +105,8 @@ mod tests {
         let sheet = compute_character_sheet(&cfg);
         // Dual-Wield MH Normal Hit: speed * 3.46
         let expected_mh_norm = 2.6 * 3.46;
-        // Dual-Wield OH Normal Hit: speed * 1.73
-        let expected_oh_norm = 1.8 * 1.73;
+        // Dual-Wield OH Normal Hit: speed * 1.73 * (1 + 0.05 * dwSpec)
+        let expected_oh_norm = 1.8 * 1.73 * (1.0 + 0.05 * (cfg.talents.dual_wield_specialization as f64));
         // Crit Rage: 2.0 * normal_rage
         let expected_mh_crit = 2.0 * expected_mh_norm;
         let expected_oh_crit = 2.0 * expected_oh_norm;
@@ -350,5 +351,33 @@ mod tests {
         assert!(bt.is_some(), "Bloodthirst should be cast during execute phase");
         assert!(exec.is_some(), "Execute should be cast during execute phase");
         assert!(bt.unwrap().casts > 0.0, "BT casts should be > 0 during execute phase with high AP/pooling");
+    }
+
+    #[test]
+    fn test_wowsims_preraid_benchmark() {
+        println!("Current dir: {:?}", std::env::current_dir());
+        let candidates = [
+            "config_test.json",
+            "../config_test.json",
+            "../../config_test.json",
+            "wow-forever-sim/config_test.json",
+        ];
+        for candidate in candidates {
+            if let Ok(data) = std::fs::read_to_string(candidate) {
+                if let Ok(cfg) = serde_json::from_str::<SimConfig>(&data) {
+                    let res = run_sim(&cfg);
+                    println!("\n==========================================");
+                    println!("RUST SIM-CORE DPS: {:.1} (min: {:.1}, max: {:.1}, std_dev: {:.1})", res.mean_dps, res.min_dps, res.max_dps, res.std_dev_dps);
+                    for ab in &res.abilities {
+                        println!("  {}: {:.1} DPS ({:.1}%)", ab.name, ab.dps, ab.pct);
+                    }
+                    println!("==========================================\n");
+                    return;
+                } else if let Err(e) = serde_json::from_str::<SimConfig>(&data) {
+                    println!("Failed to parse {}: {}", candidate, e);
+                }
+            }
+        }
+        println!("config_test.json not found, skipping benchmark print");
     }
 }

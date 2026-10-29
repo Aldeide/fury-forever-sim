@@ -222,6 +222,8 @@ export type BuffConfig = {
   roids?: boolean;
   roidCombat?: boolean;
   mightyRagePotion?: boolean;
+  goblinSapper?: boolean;
+  denseDynamite?: boolean;
 
   // Weapon Stones
   elementalSharpeningStoneMh?: boolean;
@@ -242,6 +244,7 @@ export type BuffConfig = {
   annihilatorStacks?: number;
   annihilator?: number;
   improvedExposeArmor?: number;
+  giftOfArthas?: boolean;
 } & Record<string, any>;
 
 /**
@@ -294,6 +297,7 @@ export type EncounterConfig = {
   bossLevel?: number;
   targetArmor?: number;
   bossArmor?: number;
+  startingRage?: number;
   executePercentage?: number;
   executePhasePct?: number;
   targetDefense?: number;
@@ -302,6 +306,23 @@ export type EncounterConfig = {
   iterations?: number;
   seed?: number;
 } & Record<string, any>;
+
+export const DEFAULT_ENCOUNTER_CONFIG: EncounterConfig = {
+  duration: 60,
+  durationSec: 60,
+  durationVariance: 5,
+  durationVariationSec: 5,
+  bossLevel: 63,
+  targetLevel: 63,
+  bossArmor: 3731,
+  targetArmor: 3731,
+  startingRage: 50,
+  executePercentage: 20,
+  executePhasePct: 20,
+  targets: 1,
+  targetCount: 1,
+  iterations: 2500,
+};
 
 /**
  * Full SimConfig passed to Rust simulation engine or TS worker

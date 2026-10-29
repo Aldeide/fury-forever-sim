@@ -157,8 +157,9 @@ export const App: React.FC = () => {
   const [encounter, setEncounter] = useState<EncounterConfig>({
     bossLevel: 63,
     targetLevel: 63,
-    bossArmor: 4691,
-    targetArmor: 4691,
+    bossArmor: 3731,
+    targetArmor: 3731,
+    startingRage: 50,
     durationSec: 60,
     duration: 60,
     durationVariance: 5,
@@ -170,7 +171,7 @@ export const App: React.FC = () => {
   });
 
   // Race
-  const [race, setRace] = useState<Race>('orc');
+  const [race, setRace] = useState<Race>((defaultPreset.race as Race) || 'orc');
 
   // Simulation Results & Status
   const [simResult, setSimResult] = useState<SimResult | null>(null);
@@ -243,6 +244,7 @@ export const App: React.FC = () => {
     setEnchants(newEnchants);
 
     if (preset.talents) setTalents(preset.talents);
+    if (preset.race) setRace(preset.race as Race);
     if (preset.buffs) {
       const clean = { ...preset.buffs };
       clean.rallyingCryOfDragonslayer = false;
@@ -557,7 +559,7 @@ export const App: React.FC = () => {
               <div className="text-xs font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b border-[#cccccc]">
                 Simulation &amp; Encounter Settings
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-black block mb-1">Race</label>
                   <select
@@ -571,6 +573,21 @@ export const App: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-black block mb-1">Starting Rage</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={encounter.startingRage ?? 50}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setEncounter((prev) => ({ ...prev, startingRage: val }));
+                    }}
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
+                  />
                 </div>
 
                 <div>
@@ -631,7 +648,7 @@ export const App: React.FC = () => {
                   <input
                     type="number"
                     step={100}
-                    value={encounter.bossArmor || encounter.targetArmor || 4691}
+                    value={encounter.bossArmor || encounter.targetArmor || 3731}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setEncounter((prev) => ({ ...prev, bossArmor: val, targetArmor: val }));

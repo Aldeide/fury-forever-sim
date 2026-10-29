@@ -47,6 +47,7 @@ pub struct SimulationRun {
     dodge_pct: f64,
     glance_mult: f64,
     norm_mh_speed: f64,
+    norm_oh_speed: f64,
 }
 
 impl SimulationRun {
@@ -80,6 +81,11 @@ impl SimulationRun {
             _ => 2.4,
         };
 
+        let norm_oh_speed: f64 = match oh.as_ref().map(|w| w.weapon_type.to_lowercase()).as_deref() {
+            Some(t) if t.contains("dagger") => 1.7,
+            _ => 2.4,
+        };
+
         Self {
             config,
             sheet,
@@ -89,6 +95,7 @@ impl SimulationRun {
             dodge_pct,
             glance_mult,
             norm_mh_speed,
+            norm_oh_speed,
         }
     }
 
@@ -103,8 +110,12 @@ impl SimulationRun {
         let mut touch_of_the_grave_hits = 0u32;
 
         let mut current_time = 0.0;
-        let mut rage: f64 = 0.0;
-        let mut total_rage_gained = 0.0;
+        let mut rage: f64 = if self.config.encounter.starting_rage > 0.0 {
+            self.config.encounter.starting_rage
+        } else {
+            50.0
+        };
+        let mut total_rage_gained = rage;
 
         let mut mh_swing_timer = 0.0;
         let mut oh_swing_timer = if self.is_dw {
@@ -125,6 +136,8 @@ impl SimulationRun {
         let mut pot_cd = 0.0;
         let mut trinket_cd = 0.0;
         let mut racial_cd = 0.0;
+        let mut sapper_used = false;
+        let mut dynamite_cd = 5.0;
 
         // Buff / Proc Timers & Charges
         let mut flurry_charges = 0u8;
@@ -296,7 +309,7 @@ impl SimulationRun {
 
             // Armor mitigation
             let effective_armor = (self.sheet.effective_boss_armor - dynamic_armor_pen).max(0.0);
-            let armor_mult = 1.0 - (effective_armor / (effective_armor + 5500.0));
+            let armor_mult = 1.0 - (effective_armor / (effective_armor + 5755.0));
 
             // Decrement swing timers by haste
             mh_swing_timer -= dt * haste_mult;
@@ -331,12 +344,13 @@ impl SimulationRun {
                 }
             }
 
-            // Mighty Rage Potion on execute phase entry (or pull if execute is 0)
-            if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && (in_execute || self.config.encounter.execute_phase_pct <= 0.0) {
+            // Mighty Rage Potion: can be used on pull or with Death Wish (+45-75 rage & +60 STR = 120 AP for 20s)
+            if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && current_time >= 0.0 {
                 pot_cd = 120.0;
                 mighty_rage_until = current_time + 20.0;
+                let gained_rage = rng.gen_range(45.0..=75.0);
                 let old_rage = rage;
-                rage = (rage + 60.0).min(max_rage);
+                rage = (rage + gained_rage).min(max_rage);
                 total_rage_gained += rage - old_rage;
             }
 
@@ -381,10 +395,36 @@ impl SimulationRun {
                 }
             }
 
-            // Recklessness
-            if self.config.rotation.use_recklessness && reck_cd <= 0.0 && in_execute {
+            // Recklessness: can be used on pull or with Death Wish
+            if self.config.rotation.use_recklessness && reck_cd <= 0.0 && current_time >= 0.0 {
                 reck_cd = 1800.0;
                 recklessness_until = current_time + 15.0;
+            }
+
+            // Goblin Sapper Charge: fires once per fight at t = 1.0s (450-750 Fire damage, ~10% spell crit for 1.5x)
+            if self.config.buffs.goblin_sapper && !sapper_used && current_time >= 1.0 {
+                sapper_used = true;
+                let base_dmg = rng.gen_range(450.0..=750.0);
+                let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                let entry = ability_stats.entry("Goblin Sapper Charge".to_string()).or_default();
+                entry.casts += 1;
+                if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                entry.total_damage += final_dmg;
+                total_damage += final_dmg;
+            }
+
+            // Dense Dynamite: fires on a 60s cooldown starting at t = 5.0s (340-460 Fire damage, ~10% spell crit for 1.5x)
+            if self.config.buffs.dense_dynamite && current_time >= dynamite_cd {
+                dynamite_cd = current_time + 60.0;
+                let base_dmg = rng.gen_range(340.0..=460.0);
+                let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                let entry = ability_stats.entry("Dense Dynamite".to_string()).or_default();
+                entry.casts += 1;
+                if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                entry.total_damage += final_dmg;
+                total_damage += final_dmg;
             }
 
             // On-use Trinkets
@@ -441,7 +481,10 @@ impl SimulationRun {
                             entry.crits += 1;
                             let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
                             let raw_dmg = weapon_roll + (dynamic_ap / 14.0) * self.norm_mh_speed + 35.0;
-                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
@@ -450,8 +493,8 @@ impl SimulationRun {
                             // Crit triggers flurry & deep wounds
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
                             if self.config.talents.deep_wounds > 0 {
-                                let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                                 deep_wounds_pool += dw_total;
                                 deep_wounds_ticks_left = 4;
                                 deep_wounds_next_tick = current_time + 3.0;
@@ -460,11 +503,46 @@ impl SimulationRun {
                             entry.hits += 1;
                             let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
                             let raw_dmg = weapon_roll + (dynamic_ap / 14.0) * self.norm_mh_speed + 35.0;
-                            let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
                             Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+                        }
+
+                        // Windfury proc on Overpower hit/crit
+                        if self.config.buffs.windfury_totem && roll >= yellow_miss {
+                            if rng.gen_range(0.0..100.0) < 20.0 {
+                                self.resolve_windfury_extra_swing(
+                                    rng,
+                                    current_time,
+                                    dynamic_ap,
+                                    dynamic_crit,
+                                    armor_mult,
+                                    dmg_mult,
+                                    max_rage,
+                                    is_undead,
+                                    &mut touch_of_the_grave_cd,
+                                    &mut touch_of_the_grave_hits,
+                                    &mut rage,
+                                    &mut total_rage_gained,
+                                    &mut flurry_charges,
+                                    &mut gore_drinker_charges,
+                                    &mut total_gore_drinker_heals,
+                                    &mut deep_wounds_pool,
+                                    &mut deep_wounds_ticks_left,
+                                    &mut deep_wounds_next_tick,
+                                    &mut overpower_available_until,
+                                    &mut crusader_mh_until,
+                                    &mut bonereaver_stacks,
+                                    &mut bonereaver_until,
+                                    &mut total_damage,
+                                    &mut ability_stats,
+                                );
+                            }
                         }
 
                         // Stance dance back to Berserker Stance
@@ -529,7 +607,10 @@ impl SimulationRun {
                             overpower_available_until = current_time + 5.0;
                         } else if roll < yellow_miss + dodge + yellow_crit {
                             entry.crits += 1;
-                            let final_dmg = base_exec_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = base_exec_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
@@ -537,19 +618,54 @@ impl SimulationRun {
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
                             if self.config.talents.deep_wounds > 0 {
-                                let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                                 deep_wounds_pool += dw_total;
                                 deep_wounds_ticks_left = 4;
                                 deep_wounds_next_tick = current_time + 3.0;
                             }
                         } else {
                             entry.hits += 1;
-                            let final_dmg = base_exec_dmg * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = base_exec_dmg * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
                             Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+                        }
+
+                        // Windfury proc on Execute hit/crit
+                        if self.config.buffs.windfury_totem && roll >= yellow_miss + dodge {
+                            if rng.gen_range(0.0..100.0) < 20.0 {
+                                self.resolve_windfury_extra_swing(
+                                    rng,
+                                    current_time,
+                                    dynamic_ap,
+                                    dynamic_crit,
+                                    armor_mult,
+                                    dmg_mult,
+                                    max_rage,
+                                    is_undead,
+                                    &mut touch_of_the_grave_cd,
+                                    &mut touch_of_the_grave_hits,
+                                    &mut rage,
+                                    &mut total_rage_gained,
+                                    &mut flurry_charges,
+                                    &mut gore_drinker_charges,
+                                    &mut total_gore_drinker_heals,
+                                    &mut deep_wounds_pool,
+                                    &mut deep_wounds_ticks_left,
+                                    &mut deep_wounds_next_tick,
+                                    &mut overpower_available_until,
+                                    &mut crusader_mh_until,
+                                    &mut bonereaver_stacks,
+                                    &mut bonereaver_until,
+                                    &mut total_damage,
+                                    &mut ability_stats,
+                                );
+                            }
                         }
                         continue;
                     }
@@ -589,7 +705,10 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = base_bt_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = base_bt_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -597,15 +716,18 @@ impl SimulationRun {
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
-                            let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                             deep_wounds_pool += dw_total;
                             deep_wounds_ticks_left = 4;
                             deep_wounds_next_tick = current_time + 3.0;
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = base_bt_dmg * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = base_bt_dmg * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -681,7 +803,10 @@ impl SimulationRun {
                             overpower_available_until = current_time + 5.0;
                         } else if roll < yellow_miss + dodge + yellow_crit {
                             entry.crits += 1;
-                            let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
@@ -689,19 +814,72 @@ impl SimulationRun {
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
                             if self.config.talents.deep_wounds > 0 {
-                                let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                                 deep_wounds_pool += dw_total;
                                 deep_wounds_ticks_left = 4;
                                 deep_wounds_next_tick = current_time + 3.0;
                             }
                         } else {
                             entry.hits += 1;
-                            let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                            let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg;
                             total_damage += final_dmg;
 
                             Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+                        }
+                    }
+
+                    // In WoW: Forever, Whirlwind also strikes with the Off-Hand weapon when dual-wielding!
+                    if self.is_dw {
+                        if let Some(ref oh) = self.oh {
+                            let roll: f64 = rng.gen_range(0.0..100.0);
+                            let yellow_miss = self.sheet.yellow_miss_pct;
+                            let dodge = self.dodge_pct;
+                            let yellow_crit = dynamic_crit.min(100.0 - yellow_miss - dodge);
+
+                            let oh_dw_penalty = 0.5 * (1.0 + 0.05 * (self.config.talents.dual_wield_specialization as f64));
+                            let weapon_roll = rng.gen_range(oh.min_dmg..=oh.max_dmg);
+                            let raw_dmg = (weapon_roll + (dynamic_ap / 14.0) * self.norm_oh_speed) * oh_dw_penalty;
+
+                            if roll < yellow_miss {
+                                entry.misses += 1;
+                            } else if roll < yellow_miss + dodge {
+                                entry.dodges += 1;
+                                overpower_available_until = current_time + 5.0;
+                            } else if roll < yellow_miss + dodge + yellow_crit {
+                                entry.crits += 1;
+                                let mut final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                                if self.config.buffs.gift_of_arthas {
+                                    final_dmg += 8.0 * armor_mult;
+                                }
+                                entry.total_damage += final_dmg;
+                                total_damage += final_dmg;
+
+                                Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
+                                if self.config.talents.flurry > 0 { flurry_charges = 3; }
+                                if self.config.talents.deep_wounds > 0 {
+                                    let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                                    let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
+                                    deep_wounds_pool += dw_total;
+                                    deep_wounds_ticks_left = 4;
+                                    deep_wounds_next_tick = current_time + 3.0;
+                                }
+                            } else {
+                                entry.hits += 1;
+                                let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                                if self.config.buffs.gift_of_arthas {
+                                    final_dmg += 8.0 * armor_mult;
+                                }
+                                entry.total_damage += final_dmg;
+                                total_damage += final_dmg;
+
+                                Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+                            }
                         }
                     }
 
@@ -773,7 +951,10 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = base_hs_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = base_hs_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -781,15 +962,18 @@ impl SimulationRun {
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
-                            let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                             deep_wounds_pool += dw_total;
                             deep_wounds_ticks_left = 4;
                             deep_wounds_next_tick = current_time + 3.0;
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = base_hs_dmg * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = base_hs_dmg * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -888,7 +1072,10 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < yellow_miss + dodge + yellow_crit {
                         entry.crits += 1;
-                        let final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -896,15 +1083,18 @@ impl SimulationRun {
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
-                            let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                             deep_wounds_pool += dw_total;
                             deep_wounds_ticks_left = 4;
                             deep_wounds_next_tick = current_time + 3.0;
                         }
                     } else {
                         entry.hits += 1;
-                        let final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                        let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -917,11 +1107,14 @@ impl SimulationRun {
                         let weapon_roll2 = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
                         let raw_dmg2 = weapon_roll2 + (dynamic_ap / 14.0) * self.mh.speed + bonus_dmg;
                         if roll2 >= yellow_miss + dodge {
-                            let final_dmg2 = if roll2 < yellow_miss + dodge + yellow_crit {
+                            let mut final_dmg2 = if roll2 < yellow_miss + dodge + yellow_crit {
                                 raw_dmg2 * impale_crit_mult * armor_mult * ability_dmg_mult
                             } else {
                                 raw_dmg2 * armor_mult * ability_dmg_mult
                             };
+                            if self.config.buffs.gift_of_arthas {
+                                final_dmg2 += 8.0 * armor_mult;
+                            }
                             entry.total_damage += final_dmg2;
                             total_damage += final_dmg2;
 
@@ -996,7 +1189,10 @@ impl SimulationRun {
                         overpower_available_until = current_time + 5.0;
                     } else if roll < white_miss + dodge + glancing {
                         entry.glances += 1;
-                        let final_dmg = base_white_dmg * glance_mult * armor_mult * dmg_mult;
+                        let mut final_dmg = base_white_dmg * glance_mult * armor_mult * dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -1019,7 +1215,10 @@ impl SimulationRun {
                         );
                     } else if roll < white_miss + dodge + glancing + effective_white_crit {
                         entry.crits += 1;
-                        let final_dmg = base_white_dmg * 2.0 * armor_mult * dmg_mult;
+                        let mut final_dmg = base_white_dmg * 2.0 * armor_mult * dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -1032,8 +1231,8 @@ impl SimulationRun {
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
                         if self.config.talents.deep_wounds > 0 {
-                            let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                             deep_wounds_pool += dw_total;
                             deep_wounds_ticks_left = 4;
                             deep_wounds_next_tick = current_time + 3.0;
@@ -1051,7 +1250,10 @@ impl SimulationRun {
                         );
                     } else {
                         entry.hits += 1;
-                        let final_dmg = base_white_dmg * armor_mult * dmg_mult;
+                        let mut final_dmg = base_white_dmg * armor_mult * dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
                         entry.total_damage += final_dmg;
                         total_damage += final_dmg;
 
@@ -1158,7 +1360,10 @@ impl SimulationRun {
                     overpower_available_until = current_time + 5.0;
                 } else if roll < oh_miss + dodge + glancing {
                     entry.glances += 1;
-                    let final_dmg = base_oh_dmg * glance_mult * armor_mult * dmg_mult;
+                    let mut final_dmg = base_oh_dmg * glance_mult * armor_mult * dmg_mult;
+                    if self.config.buffs.gift_of_arthas {
+                        final_dmg += 8.0 * armor_mult;
+                    }
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
@@ -1181,7 +1386,10 @@ impl SimulationRun {
                     );
                 } else if roll < oh_miss + dodge + glancing + effective_oh_crit {
                     entry.crits += 1;
-                    let final_dmg = base_oh_dmg * 2.0 * armor_mult * dmg_mult;
+                    let mut final_dmg = base_oh_dmg * 2.0 * armor_mult * dmg_mult;
+                    if self.config.buffs.gift_of_arthas {
+                        final_dmg += 8.0 * armor_mult;
+                    }
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
@@ -1194,8 +1402,8 @@ impl SimulationRun {
 
                     if self.config.talents.flurry > 0 { flurry_charges = 3; }
                     if self.config.talents.deep_wounds > 0 {
-                        let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                        let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                        let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                        let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                         deep_wounds_pool += dw_total;
                         deep_wounds_ticks_left = 4;
                         deep_wounds_next_tick = current_time + 3.0;
@@ -1213,7 +1421,10 @@ impl SimulationRun {
                     );
                 } else {
                     entry.hits += 1;
-                    let final_dmg = base_oh_dmg * armor_mult * dmg_mult;
+                    let mut final_dmg = base_oh_dmg * armor_mult * dmg_mult;
+                    if self.config.buffs.gift_of_arthas {
+                        final_dmg += 8.0 * armor_mult;
+                    }
                     entry.total_damage += final_dmg;
                     total_damage += final_dmg;
 
@@ -1340,12 +1551,9 @@ impl SimulationRun {
         }
 
         let roll: f64 = rng.gen_range(0.0..100.0);
-        let white_miss = self.sheet.mh_white_miss_pct;
+        let yellow_miss = self.sheet.yellow_miss_pct;
         let dodge = self.dodge_pct;
-        let glancing = 40.0;
-        let glance_mult = self.glance_mult;
-        let white_crit_cap = self.sheet.mh_crit_cap;
-        let effective_white_crit = dynamic_crit.min(white_crit_cap);
+        let yellow_crit = dynamic_crit.min(100.0 - yellow_miss - dodge);
 
         let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
         // Windfury grants +315 AP on the extra swing
@@ -1354,36 +1562,17 @@ impl SimulationRun {
         let norm_rage = self.sheet.mh_norm_rage;
         let crit_rage = self.sheet.mh_crit_rage;
 
-        if roll < white_miss {
+        if roll < yellow_miss {
             entry.misses += 1;
-        } else if roll < white_miss + dodge {
+        } else if roll < yellow_miss + dodge {
             entry.dodges += 1;
             *overpower_available_until = current_time + 5.0;
-        } else if roll < white_miss + dodge + glancing {
-            entry.glances += 1;
-            let final_dmg = base_wf_dmg * glance_mult * armor_mult * dmg_mult;
-            entry.total_damage += final_dmg;
-            *total_damage += final_dmg;
-
-            Self::check_touch_of_the_grave(is_undead, current_time, touch_of_the_grave_cd, touch_of_the_grave_hits, total_damage);
-
-            let old_rage = *rage;
-            *rage = (*rage + norm_rage).min(max_rage);
-            *total_rage_gained += *rage - old_rage;
-
-            self.resolve_on_hit_procs(
-                rng,
-                current_time,
-                &self.mh,
-                crusader_mh_until,
-                bonereaver_stacks,
-                bonereaver_until,
-                total_damage,
-                ability_stats,
-            );
-        } else if roll < white_miss + dodge + glancing + effective_white_crit {
+        } else if roll < yellow_miss + dodge + yellow_crit {
             entry.crits += 1;
-            let final_dmg = base_wf_dmg * 2.0 * armor_mult * dmg_mult;
+            let mut final_dmg = base_wf_dmg * 2.0 * armor_mult * dmg_mult;
+            if self.config.buffs.gift_of_arthas {
+                final_dmg += 8.0 * armor_mult;
+            }
             entry.total_damage += final_dmg;
             *total_damage += final_dmg;
 
@@ -1395,8 +1584,8 @@ impl SimulationRun {
 
             if self.config.talents.flurry > 0 { *flurry_charges = 3; }
             if self.config.talents.deep_wounds > 0 {
-                let avg_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                let dw_total = avg_dmg * 0.20 * (self.config.talents.deep_wounds as f64);
+                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
+                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
                 *deep_wounds_pool += dw_total;
                 *deep_wounds_ticks_left = 4;
                 *deep_wounds_next_tick = current_time + 3.0;
@@ -1414,7 +1603,10 @@ impl SimulationRun {
             );
         } else {
             entry.hits += 1;
-            let final_dmg = base_wf_dmg * armor_mult * dmg_mult;
+            let mut final_dmg = base_wf_dmg * armor_mult * dmg_mult;
+            if self.config.buffs.gift_of_arthas {
+                final_dmg += 8.0 * armor_mult;
+            }
             entry.total_damage += final_dmg;
             *total_damage += final_dmg;
 

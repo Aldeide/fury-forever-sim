@@ -186,7 +186,7 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   if (buffs.graceOfAirTotem) buffAgi += 77;
   if (buffs.battleShout) buffAp += buffs.improvedBattleShout ? 290 : 232;
   if (buffs.blessingOfMight) buffAp += buffs.improvedBlessingOfMight ? 222 : 185;
-  if (buffs.trueshotAura) buffAp += 50;
+  if (buffs.trueshotAura) buffAp += 100;
   if (buffs.leaderOfThePack) buffCrit += 3.0;
 
   if (buffs.elementalSharpeningStoneMH || buffs.elementalSharpeningStoneMh) buffCrit += 2.0;
@@ -226,7 +226,7 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   const ohDps = oh ? (oh.dps || +(((ohMinDmg + ohMaxDmg) / 2) / ohSpeed).toFixed(1)) : 0;
 
   // Boss Armor Calculation
-  const baseBossArmor = config.encounter?.bossArmor || config.encounter?.targetArmor || 4691;
+  const baseBossArmor = config.encounter?.bossArmor || config.encounter?.targetArmor || 3731;
   let bossArmorReduction = 0;
   if (buffs.sunderArmor) bossArmorReduction += Math.min(5, Number(buffs.sunderArmor)) * 450;
   if (buffs.faerieFire) bossArmorReduction += 505;
@@ -243,12 +243,10 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   const mhCritCap = Math.max(0, +(100.0 - mhWhiteMissPct - yellowDodgePct - 40.0).toFixed(2));
   const ohCritCap = Math.max(0, +(100.0 - ohWhiteMissPct - yellowDodgePct - 40.0).toFixed(2));
 
-  const estMhHitDmg = Math.round(((mhMinDmg + mhMaxDmg) / 2 + (totalAp / 14) * mhSpeed) * 0.70);
-  const estOhHitDmg = Math.round((((ohMinDmg + ohMaxDmg) / 2 + (totalAp / 14) * ohSpeed) * 0.70) * 0.50);
-  const mhNormRage = Math.min(50, +((estMhHitDmg / 30.0) * 3.75).toFixed(1));
-  const ohNormRage = Math.min(30, +((estOhHitDmg / 30.0) * 3.75 * 0.5).toFixed(1));
-  const mhCritRage = +(mhNormRage * 2.0).toFixed(1);
-  const ohCritRage = +(ohNormRage * 2.0).toFixed(1);
+  const mhNormRage = mhSpeed * (oh ? 3.46 : 4.50);
+  const ohNormRage = oh ? ohSpeed * 1.73 * (1.0 + 0.05 * (talents.dualWieldSpecialization || talents.dualWieldSpec || 0)) : 0;
+  const mhCritRage = mhNormRage * 2.0;
+  const ohCritRage = ohNormRage * 2.0;
 
   const retainedStanceRage = 10 + (talents.tacticalMastery || 0) * 5;
   const armorReductionPct = +((1.0 - (bossArmorRemaining / (bossArmorRemaining + 400 + 85 * targetLevel))) * 100).toFixed(1);
@@ -350,6 +348,9 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
     'Overpower': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Auto-Attack (MH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Auto-Attack (OH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Windfury Attack': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Goblin Sapper Charge': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Dense Dynamite': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Deep Wounds': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Touch of the Grave': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
   };
@@ -357,6 +358,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
   const fightDpsList: number[] = new Array(iterations);
   const hsThreshold = rotation.hsRageThreshold ?? rotation.heroicStrikeRageThreshold ?? 45;
   const opMaxRage = rotation.overpowerMaxRage ?? rotation.overpowerRageThreshold ?? 35;
+
+  const impaleCritMult = 2.0 + (talents.impale || 0) * 0.10;
 
   const mhMinDmg = stats.mhMinDmg || 80;
   const mhMaxDmg = stats.mhMaxDmg || 140;
@@ -367,6 +370,11 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
   const baseAp = stats.totalAp || 800;
   const baseCrit = stats.critPct || 20;
   const baseHaste = stats.hastePct || 0;
+
+  const mhNormRage = stats.mhNormRage ?? (mhSpeed * (isDualWield ? 3.46 : 4.50));
+  const ohNormRage = stats.ohNormRage ?? (isDualWield ? ohSpeed * 1.73 * (1 + 0.05 * (talents.dualWieldSpecialization || talents.dualWieldSpec || 0)) : 0);
+  const mhCritRage = stats.mhCritRage ?? (mhNormRage * 2.0);
+  const ohCritRage = stats.ohCritRage ?? (ohNormRage * 2.0);
 
   // Track active time across iterations for proc uptimes
   let totalBloodFuryTime = 0.0;
@@ -385,7 +393,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
     totalFightTime += iterDuration;
 
     let time = 0.0;
-    let rage = buffs.mightyRagePotion ? 60 : 0;
+    let rage = encounter.startingRage ?? 50;
     if (rotation.useBloodrage) rage = Math.min(maxRage, rage + 20);
 
     let fightDamage = 0;
@@ -395,6 +403,10 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
     let btCd = 0.0;
     let wwCd = 0.0;
     let racialCd = 0.0;
+    let mightyRageActiveUntil = -1.0;
+    let mightyRageCd = 0.0;
+    let sapperUsed = false;
+    let dynamiteCd = 5.0;
     let overpowerAvailableUntil = -1.0;
     let flurryCharges = 0;
     let deathWishActiveUntil = -1.0;
@@ -426,6 +438,52 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
     };
 
+    const triggerDeepWounds = (ap: number) => {
+      if ((talents.deepWounds || 0) > 0) {
+        const outstandingDmg = deepWoundsTicks * deepWoundsTickDamage;
+        const avgMhWeaponDmg = (mhMinDmg + mhMaxDmg) / 2;
+        const dwRank = talents.deepWounds || 3;
+        const newDwDmg = 0.20 * dwRank * (avgMhWeaponDmg + (ap / 14) * mhSpeed);
+        const totalDwDmg = outstandingDmg + newDwDmg;
+        deepWoundsTicks = 4;
+        deepWoundsTickDamage = totalDwDmg / 4;
+        nextDeepWoundsTick = time + 3.0;
+      }
+    };
+
+    const resolveWindfuryExtraSwing = (ap: number, crit: number, dmgMult: number) => {
+      abilityStats['Windfury Attack'].casts++;
+      const roll = rng.next();
+      if (roll < yellowMissChance) {
+        abilityStats['Windfury Attack'].misses++;
+      } else if (roll < yellowMissChance + yellowDodgeChance) {
+        abilityStats['Windfury Attack'].dodges++;
+        overpowerAvailableUntil = time + 5.0;
+      } else if (roll < yellowMissChance + yellowDodgeChance + (crit / 100.0)) {
+        abilityStats['Windfury Attack'].crits++;
+        const weaponRoll = mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg);
+        const baseWfDmg = weaponRoll + ((ap + 315) / 14) * mhSpeed;
+        let dmg = baseWfDmg * (2.0 + (talents.impale || 0) * 0.10) * armorMultiplier * dmgMult;
+        if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+        fightDamage += dmg;
+        abilityStats['Windfury Attack'].damage += dmg;
+        checkTouchOfTheGrave();
+        rage = Math.min(maxRage, rage + mhCritRage);
+        flurryCharges = 3;
+        triggerDeepWounds(ap);
+      } else {
+        abilityStats['Windfury Attack'].hits++;
+        const weaponRoll = mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg);
+        const baseWfDmg = weaponRoll + ((ap + 315) / 14) * mhSpeed;
+        let dmg = baseWfDmg * armorMultiplier * dmgMult;
+        if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+        fightDamage += dmg;
+        abilityStats['Windfury Attack'].damage += dmg;
+        checkTouchOfTheGrave();
+        rage = Math.min(maxRage, rage + mhNormRage);
+      }
+    };
+
     while (time < iterDuration) {
       if (rotation.useDeathWish && talents.deathWish && deathWishActiveUntil < time - 180 && time >= (rotation.deathWishTiming || 0)) {
         if (rage >= 10) {
@@ -435,6 +493,40 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
       if (rotation.useRecklessness && recklessnessActiveUntil < time - 1800 && time >= (rotation.recklessnessTiming || 0)) {
         recklessnessActiveUntil = time + 15.0;
+      }
+
+      // Mighty Rage Potion on pull or off-cooldown (+45-75 rage & +60 STR = 120 AP for 20s)
+      if (buffs.mightyRagePotion && mightyRageCd <= time && time >= 0) {
+        mightyRageCd = time + 120.0;
+        mightyRageActiveUntil = time + 20.0;
+        const potRage = 45 + rng.next() * 30;
+        rage = Math.min(maxRage, rage + potRage);
+      }
+
+      // Goblin Sapper Charge: fires once per fight at t = 1.0s (450-750 Fire dmg, ~10% spell crit)
+      if (buffs.goblinSapper && !sapperUsed && time >= 1.0) {
+        sapperUsed = true;
+        const baseDmg = 450 + rng.next() * 300;
+        const isCrit = rng.next() < 0.10;
+        const dmg = isCrit ? baseDmg * 1.5 : baseDmg;
+        abilityStats['Goblin Sapper Charge'].casts++;
+        if (isCrit) abilityStats['Goblin Sapper Charge'].crits++;
+        else abilityStats['Goblin Sapper Charge'].hits++;
+        abilityStats['Goblin Sapper Charge'].damage += dmg;
+        fightDamage += dmg;
+      }
+
+      // Dense Dynamite: fires on a 60s cooldown starting at t = 5.0s (340-460 Fire dmg, ~10% spell crit)
+      if (buffs.denseDynamite && time >= dynamiteCd) {
+        dynamiteCd = time + 60.0;
+        const baseDmg = 340 + rng.next() * 120;
+        const isCrit = rng.next() < 0.10;
+        const dmg = isCrit ? baseDmg * 1.5 : baseDmg;
+        abilityStats['Dense Dynamite'].casts++;
+        if (isCrit) abilityStats['Dense Dynamite'].crits++;
+        else abilityStats['Dense Dynamite'].hits++;
+        abilityStats['Dense Dynamite'].damage += dmg;
+        fightDamage += dmg;
       }
 
       // Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
@@ -458,6 +550,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       let currentAp = baseAp;
       if (crusaderMhActiveUntil > time) currentAp += 100;
       if (crusaderOhActiveUntil > time) currentAp += 100;
+      if (mightyRageActiveUntil > time) currentAp += buffs.blessingOfKings ? 132 : 120;
       if (bloodFuryActiveUntil > time) currentAp *= 1.10;
       if (deathWishActiveUntil > time) currentAp *= 1.20;
 
@@ -511,6 +604,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           rage >= btCost &&
           (currentAp >= btApThresh || rage >= poolThresh);
 
+        const impaleCritMult = 2.0 + (talents.impale || 0) * 0.10;
+
         if (
           overpowerAvailableUntil > time &&
           talents.improvedOverpower &&
@@ -526,15 +621,20 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           const avgMhDmg = (mhMinDmg + mhMaxDmg) / 2 + (currentAp / 14) * 2.4;
           let opDmg = (avgMhDmg + 35) * armorMultiplier * abilityDmgMult;
           if (isCrit) {
-            opDmg *= 2.0;
+            opDmg *= impaleCritMult;
             abilityStats['Overpower'].crits++;
             flurryCharges = 3;
+            triggerDeepWounds(currentAp);
           } else {
             abilityStats['Overpower'].hits++;
           }
+          if (buffs.giftOfArthas) opDmg += 8.0 * armorMultiplier;
           fightDamage += opDmg;
           abilityStats['Overpower'].damage += opDmg;
           checkTouchOfTheGrave();
+          if (buffs.windfuryTotem && rng.next() < 0.20) {
+            resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+          }
           overpowerAvailableUntil = -1.0;
           gcdTimer = 1.5;
         } else if (!preferBt && isExecutePhase && rage >= execCost) {
@@ -554,15 +654,20 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             let dmg = (600 + extraRage * 15) * armorMultiplier * abilityDmgMult;
             rage = 0;
             if (isCrit) {
-              dmg *= 2.0;
+              dmg *= impaleCritMult;
               abilityStats['Execute'].crits++;
               flurryCharges = 3;
+              triggerDeepWounds(currentAp);
             } else {
               abilityStats['Execute'].hits++;
             }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Execute'].damage += dmg;
             checkTouchOfTheGrave();
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            }
           }
           gcdTimer = 1.5;
         } else if (talents.bloodthirst && btCd <= 0 && rage >= btCost) {
@@ -581,18 +686,20 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             const isCrit = rng.next() < (currentCrit / 100.0);
             let dmg = (currentAp * 0.45) * armorMultiplier * abilityDmgMult;
             if (isCrit) {
-              dmg *= 2.0;
+              dmg *= impaleCritMult;
               abilityStats['Bloodthirst'].crits++;
               flurryCharges = 3;
-              deepWoundsTicks = 4;
-              deepWoundsTickDamage = Math.round((mhMaxDmg * 0.6) / 4);
-              nextDeepWoundsTick = time + 3.0;
+              triggerDeepWounds(currentAp);
             } else {
               abilityStats['Bloodthirst'].hits++;
             }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Bloodthirst'].damage += dmg;
             checkTouchOfTheGrave();
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            }
           }
           gcdTimer = 1.5;
         } else if (wwCd <= 0 && rage >= wwCost) {
@@ -600,6 +707,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           wwCd = 10.0;
           abilityStats['Whirlwind'].casts++;
           if (eurekaActive) eurekaCharges--;
+
+          // Main-Hand WW Hit
           const roll = rng.next();
           if (roll < yellowMissChance) {
             abilityStats['Whirlwind'].misses++;
@@ -610,21 +719,53 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           } else {
             const isCrit = rng.next() < (currentCrit / 100.0);
             const weaponNormSpeed = 2.4;
-            const avgDmg = (mhMinDmg + mhMaxDmg) / 2 + (currentAp / 14) * weaponNormSpeed;
-            let dmg = avgDmg * armorMultiplier * abilityDmgMult;
+            const weaponRoll = mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg);
+            const rawDmg = weaponRoll + (currentAp / 14) * weaponNormSpeed;
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult * (deathWishActiveUntil > time ? 1.20 : 1.0);
             if (isCrit) {
-              dmg *= 2.0;
+              dmg *= impaleCritMult;
               abilityStats['Whirlwind'].crits++;
               flurryCharges = 3;
-              deepWoundsTicks = 4;
-              deepWoundsTickDamage = Math.round((mhMaxDmg * 0.6) / 4);
-              nextDeepWoundsTick = time + 3.0;
+              triggerDeepWounds(currentAp);
             } else {
               abilityStats['Whirlwind'].hits++;
             }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Whirlwind'].damage += dmg;
             checkTouchOfTheGrave();
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            }
+          }
+
+          // Off-Hand WW Hit when dual-wielding (WoW: Forever)
+          if (isDualWield) {
+            const ohRoll = rng.next();
+            if (ohRoll < yellowMissChance) {
+              abilityStats['Whirlwind'].misses++;
+            } else if (ohRoll < yellowMissChance + yellowDodgeChance) {
+              abilityStats['Whirlwind'].dodges++;
+              overpowerAvailableUntil = time + 5.0;
+            } else {
+              const isCrit = rng.next() < (currentCrit / 100.0);
+              const ohNormSpeed = 2.4;
+              const ohWeaponRoll = ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg);
+              const rawDmg = (ohWeaponRoll + (currentAp / 14) * ohNormSpeed) * dwSpecMult;
+              let dmg = rawDmg * armorMultiplier * abilityDmgMult * (deathWishActiveUntil > time ? 1.20 : 1.0);
+              if (isCrit) {
+                dmg *= impaleCritMult;
+                abilityStats['Whirlwind'].crits++;
+                flurryCharges = 3;
+                triggerDeepWounds(currentAp);
+              } else {
+                abilityStats['Whirlwind'].hits++;
+              }
+              if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+              fightDamage += dmg;
+              abilityStats['Whirlwind'].damage += dmg;
+              checkTouchOfTheGrave();
+            }
           }
           gcdTimer = 1.5;
         }
@@ -656,15 +797,20 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed + 138;
             let dmg = rawDmg * armorMultiplier * abilityDmgMult;
             if (isCrit) {
-              dmg *= 2.0;
+              dmg *= impaleCritMult;
               abilityStats['Heroic Strike'].crits++;
               flurryCharges = 3;
+              triggerDeepWounds(currentAp);
             } else {
               abilityStats['Heroic Strike'].hits++;
             }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Heroic Strike'].damage += dmg;
             checkTouchOfTheGrave();
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+            }
           }
         } else {
           const roll = rng.next();
@@ -676,12 +822,12 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           } else if (roll < mhWhiteMiss + yellowDodgeChance + glancingChance) {
             abilityStats['Auto-Attack (MH)'].glancings++;
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
-            const dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+            let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
             checkTouchOfTheGrave();
-            const generatedRage = Math.min(50, (dmg / 30.0) * 3.75);
-            rage = Math.min(maxRage, rage + generatedRage);
+            rage = Math.min(maxRage, rage + mhNormRage);
           } else {
             const whiteCritCap = Math.max(0, 1.0 - (mhWhiteMiss + yellowDodgeChance + glancingChance));
             const effectiveCrit = Math.min(whiteCritCap, currentCrit / 100.0);
@@ -692,25 +838,23 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               dmg *= 2.0;
               abilityStats['Auto-Attack (MH)'].crits++;
               flurryCharges = 3;
-              const generatedRage = Math.min(75, ((dmg / 2) / 30.0) * 3.75 * 2.0);
-              rage = Math.min(maxRage, rage + generatedRage);
+              triggerDeepWounds(currentAp);
+              rage = Math.min(maxRage, rage + mhCritRage);
             } else {
               abilityStats['Auto-Attack (MH)'].hits++;
-              const generatedRage = Math.min(50, (dmg / 30.0) * 3.75);
-              rage = Math.min(maxRage, rage + generatedRage);
+              rage = Math.min(maxRage, rage + mhNormRage);
             }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
             fightDamage += dmg;
             abilityStats['Auto-Attack (MH)'].damage += dmg;
             checkTouchOfTheGrave();
           }
+
+          if (buffs.windfuryTotem && roll >= (mhWhiteMiss + yellowDodgeChance) && rng.next() < 0.20) {
+            resolveWindfuryExtraSwing(currentAp, currentCrit, deathWishActiveUntil > time ? 1.20 : 1.0);
+          }
         }
 
-        if (buffs.windfuryTotem && rng.next() < 0.20) {
-          const wfDmg = ((mhMinDmg + mhMaxDmg) / 2 + ((currentAp + 315) / 14) * mhSpeed) * armorMultiplier;
-          fightDamage += wfDmg;
-          checkTouchOfTheGrave();
-          rage = Math.min(maxRage, rage + 15);
-        }
         if (rng.next() < (mhSpeed / 60.0)) {
           crusaderMhActiveUntil = time + 15.0;
         }
@@ -731,12 +875,12 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         } else if (roll < ohWhiteMiss + yellowDodgeChance + glancingChance) {
           abilityStats['Auto-Attack (OH)'].glancings++;
           const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
-          const dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+          let dmg = rawDmg * armorMultiplier * (1.0 - glancingPenalty);
+          if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
           checkTouchOfTheGrave();
-          const generatedRage = Math.min(30, (dmg / 30.0) * 3.75 * 0.5);
-          rage = Math.min(maxRage, rage + generatedRage);
+          rage = Math.min(maxRage, rage + ohNormRage);
         } else {
           const ohCritCap = Math.max(0, 1.0 - (ohWhiteMiss + yellowDodgeChance + glancingChance));
           const effectiveCrit = Math.min(ohCritCap, currentCrit / 100.0);
@@ -747,13 +891,13 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             dmg *= 2.0;
             abilityStats['Auto-Attack (OH)'].crits++;
             flurryCharges = 3;
-            const generatedRage = Math.min(45, ((dmg / 2) / 30.0) * 3.75 * 0.5 * 2.0);
-            rage = Math.min(maxRage, rage + generatedRage);
+            triggerDeepWounds(currentAp);
+            rage = Math.min(maxRage, rage + ohCritRage);
           } else {
             abilityStats['Auto-Attack (OH)'].hits++;
-            const generatedRage = Math.min(30, (dmg / 30.0) * 3.75 * 0.5);
-            rage = Math.min(maxRage, rage + generatedRage);
+            rage = Math.min(maxRage, rage + ohNormRage);
           }
+          if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
           fightDamage += dmg;
           abilityStats['Auto-Attack (OH)'].damage += dmg;
           checkTouchOfTheGrave();
