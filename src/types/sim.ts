@@ -141,38 +141,68 @@ export interface EnchantInfo {
  * WoW: Forever TalentConfig matching Rust sim-core
  */
 export type TalentConfig = {
-  // Arms
+  // Arms (17 talents)
+  improvedHeroicStrike?: number;
   deflection?: number;
   improvedRend?: number;
-  improvedHeroicStrike?: number;
+  improvedCharge?: number;
   improvedTacticalMastery?: number;
-  tacticalMastery?: number;
+  tacticalMastery?: number; // legacy alias
   improvedOverpower?: number;
   angerManagement?: number;
   deepWounds?: number;
-  impale?: number;
-  weaponmaster?: number; // WoW: Forever consolidated Weapon Mastery (+3/+5 skill & crit)
-  weaponMastery?: number;
+  spearingStrike?: number;
   twoHandedWeaponSpecialization?: number;
-  twoHandedWeaponSpec?: number;
+  twoHandedWeaponSpec?: number; // legacy alias
+  impale?: number;
+  bloodthrill?: number;
+  sweepingStrikes?: number;
+  weaponmaster?: number;
+  weaponMastery?: number; // legacy alias
+  improvedSlam?: number;
+  improvedHamstring?: number;
+  mortalStrike?: number;
 
-  // Fury
-  cruelty?: number;
+  // Fury (17 talents)
   boomingVoice?: number;
+  cruelty?: number;
+  lingeringRage?: number;
   unbridledWrath?: number;
-  lingeringRage?: number; // WoW: Forever Row 2
-  improvedBattleShout?: number;
-  furiousPrecision?: number; // WoW: Forever Row 3 (Off-Hand Hit!)
-  improvedExecute?: number;
-  enrage?: number;
+  furiousPrecision?: number;
+  piercingHowl?: number;
+  bloodCraze?: number;
   dualWieldSpecialization?: number;
-  dualWieldSpec?: number;
-  ragingBlows?: number; // WoW: Forever Row 4 (-rage cost on WW/Cleave)
-  deathWish?: number; // WoW: Forever Row 5 (prereq for Flurry)
+  dualWieldSpec?: number; // legacy alias
+  ragingBlows?: number;
+  enrage?: number;
+  improvedExecute?: number;
   improvedBerserkerRage?: number;
-  flurry?: number; // WoW: Forever Row 6
-  goreDrinker?: number; // WoW: Forever Row 6
-  bloodthirst?: number; // Row 7
+  deathWish?: number;
+  improvedIntercept?: number;
+  flurry?: number;
+  goreDrinker?: number;
+  bloodthirst?: number;
+
+  // Protection (18 talents)
+  improvedBloodrage?: number;
+  shieldSpecialization?: number;
+  shieldSpec?: number; // legacy alias
+  ironWill?: number;
+  anticipation?: number;
+  improvedRevenge?: number;
+  improvedThunderClap?: number;
+  lastStand?: number;
+  masterOfDefense?: number;
+  improvedDisarm?: number;
+  defiance?: number;
+  improvedSunderArmor?: number;
+  vanguard?: number;
+  improvedShieldBash?: number;
+  improvedShieldWall?: number;
+  concussionBlow?: number;
+  focusedRage?: number;
+  bastion?: number;
+  shieldSlam?: number;
 } & Record<string, any>;
 
 /**

@@ -189,7 +189,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     if config.buffs.leader_of_the_pack {
         buff_crit += 3.0;
     }
-    if config.buffs.elemental_sharpening_stone_mh {
+    if config.buffs.elemental_sharpening_stone_mh && !config.buffs.windfury_totem {
         buff_crit += 2.0;
     }
     if config.buffs.elemental_sharpening_stone_oh {

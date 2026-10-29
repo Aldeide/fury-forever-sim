@@ -123,7 +123,7 @@ export const App: React.FC = () => {
 
   // Buffs (Filtered to ensure no world buffs are active by default in raids)
   const [buffs, setBuffs] = useState<BuffConfig>(() => {
-    const cleanBuffs = { ...DEFAULT_BUFF_CONFIG };
+    const cleanBuffs = { ...(defaultPreset.buffs || DEFAULT_BUFF_CONFIG) };
     // Disable world buffs for raid ruleset
     cleanBuffs.rallyingCryOfDragonslayer = false;
     cleanBuffs.songflowerSerenade = false;

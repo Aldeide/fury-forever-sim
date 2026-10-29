@@ -192,11 +192,17 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
     buffAgi += 25;
     buffCrit += 2.0;
   }
-  if (buffs.elixirOfGiants) buffStr += 25;
-  if (buffs.jujuPower) buffStr += 30;
-  if (buffs.jujuMight) buffAp += 40;
+  if (buffs.jujuPower) {
+    buffStr += 30;
+  } else if (buffs.elixirOfGiants) {
+    buffStr += 25;
+  }
+  if (buffs.jujuMight) {
+    buffAp += 40;
+  } else if (buffs.winterfallFirewater) {
+    buffAp += 35;
+  }
   if (buffs.jujuFlurry) buffHaste += 3.0;
-  if (buffs.winterfallFirewater) buffAp += 35;
   if (buffs.smokedDesertDumplings) buffStr += 20;
   if (buffs.strengthOfEarthTotem || buffs.strengthOfEarth) buffStr += 77;
   if (buffs.graceOfAirTotem || buffs.graceOfAir) buffAgi += 77;
@@ -205,7 +211,7 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   if (buffs.trueshotAura) buffAp += 100;
   if (buffs.leaderOfThePack) buffCrit += 3.0;
 
-  if (buffs.elementalSharpeningStoneMH || buffs.elementalSharpeningStoneMh) buffCrit += 2.0;
+  if (!buffs.windfuryTotem && (buffs.elementalSharpeningStoneMH || buffs.elementalSharpeningStoneMh)) buffCrit += 2.0;
   if (buffs.elementalSharpeningStoneOH || buffs.elementalSharpeningStoneOh) buffCrit += 2.0;
 
   // Talent contributions
@@ -558,7 +564,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       if (hasHoj && rng.next() < 0.02) {
         resolveExtraAttack(ap, crit, dmgMult);
       }
-      if (isMh && isIronfoe && rng.next() < 0.05) {
+      if (isMh && isIronfoe && rng.next() < (0.8 * mhSpeed / 60.0)) {
         resolveExtraAttack(ap, crit, dmgMult);
         resolveExtraAttack(ap, crit, dmgMult);
       }
@@ -966,7 +972,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       // Off Hand Swing (Always suffers dual-wield penalty)
       if (isDualWield && ohTimer <= 0) {
         abilityStats['Auto-Attack (OH)'].casts++;
-        const effectiveOhMiss = hsQueued ? yellowMissChance : ohWhiteMiss;
+        const effectiveOhMiss = ohWhiteMiss;
         const suppressedCrit = Math.max(0, currentCrit - 3.0) / 100.0;
         const ohCritCap = Math.max(0, 1.0 - (effectiveOhMiss + yellowDodgeChance + glancingChance));
         const effectiveCrit = Math.min(ohCritCap, suppressedCrit);
