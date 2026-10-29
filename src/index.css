@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background-color: #07090e;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(198, 155, 109, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(180, 83, 9, 0.05) 0px, transparent 50%);
+  }
+
+  /* Sleek custom scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0b0f19;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c69b6d;
+  }
+}
+
+/* WoW Quality Colors & Accents */
+.text-quality-legendary {
+  color: #ff8000;
+}
+.text-quality-epic {
+  color: #a335ee;
+}
+.text-quality-rare {
+  color: #0070dd;
+}
+.text-quality-uncommon {
+  color: #1eff00;
+}
+.text-quality-common {
+  color: #ffffff;
+}
+
+.border-quality-legendary {
+  border-color: #ff8000;
+}
+.border-quality-epic {
+  border-color: #a335ee;
+}
+.border-quality-rare {
+  border-color: #0070dd;
+}
+.border-quality-uncommon {
+  border-color: #1eff00;
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

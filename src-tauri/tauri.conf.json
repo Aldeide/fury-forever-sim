@@ -1,0 +1,33 @@
+{
+  "build": {
+    "beforeBuildCommand": "",
+    "beforeDevCommand": "",
+    "devPath": "http://localhost:5173",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "WoW Forever Warrior Sim",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "bundle": {
+      "active": false,
+      "identifier": "com.wowforever.sim"
+    },
+    "allowlist": {
+      "all": false
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 900,
+        "resizable": true,
+        "title": "WoW: Forever Warrior DPS Simulator",
+        "width": 1400
+      }
+    ]
+  }
+}
