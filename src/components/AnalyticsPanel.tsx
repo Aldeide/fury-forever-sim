@@ -66,19 +66,19 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
       <div className="bg-[#eeeeee] border border-[#d5d5d5] p-4 rounded flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-black font-mono">
+            <span className="text-3xl font-extrabold text-black tabular-nums">
               DPS: {dpsVal.toFixed(1)}
             </span>
-            <span className="text-xs text-[#555555] font-mono">
+            <span className="text-xs text-[#555555] tabular-nums">
               (± {errorMargin} DPS)
             </span>
           </div>
-          <div className="text-xs text-[#666666] font-mono mt-0.5">
+          <div className="text-xs text-[#666666] tabular-nums mt-0.5">
             Min: {minDps.toFixed(0)} DPS &bull; Max: {maxDps.toFixed(0)} DPS
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-6 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-6 text-xs tabular-nums">
           <div className="text-center">
             <div className="text-[#666666] uppercase text-[10px] font-bold">Rage / Sec</div>
             <div className="text-base font-bold text-black">{meanRps}</div>
@@ -105,7 +105,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
 
       {/* Abilities & Melee Attacks Table */}
       <div className="overflow-x-auto">
-        <table className="ww-table w-full text-left text-xs font-mono">
+        <table className="ww-table w-full text-left text-xs tabular-nums">
           <thead>
             <tr>
               <th className="py-2 px-3 text-left">Ability</th>
@@ -203,12 +203,12 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
           <div className="text-xs font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b border-[#cccccc]">
             Buff &amp; Proc Uptimes
           </div>
-          <div className="space-y-3 font-mono text-xs">
+          <div className="space-y-3 text-xs">
             {Object.entries(procs).map(([name, pct]) => (
               <div key={name}>
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-sans font-medium text-black">{name}</span>
-                  <span className="font-bold text-[#1861ac]">{pct}%</span>
+                  <span className="font-bold text-[#1861ac] tabular-nums">{pct}%</span>
                 </div>
                 <div className="w-full bg-[#d5d5d5] h-2.5 rounded-none overflow-hidden">
                   <div
@@ -225,7 +225,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
         <div className="bg-[#eeeeee] border border-[#d5d5d5] p-4 rounded flex flex-col">
           <div className="text-xs font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b border-[#cccccc] flex justify-between items-center">
             <span>DPS Distribution Histogram</span>
-            <span className="text-[10px] text-[#666666] font-mono">
+            <span className="text-[10px] text-[#666666] tabular-nums">
               Spread: {minDps.toFixed(0)} - {maxDps.toFixed(0)}
             </span>
           </div>
@@ -241,7 +241,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
                       className="w-full bg-[#1861ac] group-hover:bg-[#144e8c] rounded-none transition-all"
                       title={`${bin[0]} DPS: ${bin[1]} occurrences`}
                     />
-                    <span className="text-[8px] font-mono text-[#666666] mt-1 truncate max-w-full">
+                    <span className="text-[8px] text-[#666666] mt-1 truncate max-w-full tabular-nums">
                       {bin[0]}
                     </span>
                   </div>
@@ -249,7 +249,7 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
               })}
             </div>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-xs text-[#777777] font-mono">
+            <div className="flex-1 flex items-center justify-center text-xs text-[#777777]">
               No histogram data for this run
             </div>
           )}

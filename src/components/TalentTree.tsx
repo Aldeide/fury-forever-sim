@@ -74,7 +74,7 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
           <div className="text-sm font-bold text-black">
             Points Remaining:{' '}
             <span
-              className={`font-mono font-bold ${
+              className={`font-sans tabular-nums font-bold ${
                 remainingPoints === 0
                   ? 'text-[#2e7d32]'
                   : remainingPoints < 0

@@ -90,7 +90,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         <h3 className="text-lg font-normal text-black tracking-tight">
           {activeRace.name} Warrior
         </h3>
-        <p className="text-[11px] text-[#666666] font-mono">
+        <p className="text-[11px] text-[#666666]">
           Level 60 Fury Warrior
         </p>
 
@@ -203,10 +203,10 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           <div className="text-[10px] uppercase font-bold text-[#666666] tracking-wider">
             Simulated DPS
           </div>
-          <div className="text-2xl font-bold text-[#1861ac] font-mono">
+          <div className="text-2xl font-bold text-[#1861ac] tabular-nums">
             {dpsVal.toFixed(1)}
           </div>
-          <div className="text-[10px] text-[#777777] font-mono">
+          <div className="text-[10px] text-[#777777] tabular-nums">
             ±{stdDevVal.toFixed(1)} SD &bull; [{(simResult?.minDps || 0).toFixed(0)} - {(simResult?.maxDps || 0).toFixed(0)}]
           </div>
         </div>
@@ -277,29 +277,29 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">Glancing Chance</span>
-          <span className="text-black font-mono">{glancingChance}%</span>
+          <span className="text-black tabular-nums">{glancingChance}%</span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">Yellow Miss Chance</span>
-          <span className={`font-mono ${yellowMiss === 0 ? 'text-[#26b050] font-bold' : 'text-black'}`}>
+          <span className={`tabular-nums ${yellowMiss === 0 ? 'text-[#26b050] font-bold' : 'text-black'}`}>
             {yellowMiss}% {yellowMiss === 0 ? '(Capped)' : ''}
           </span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">MH White Miss Chance</span>
-          <span className="text-black font-mono">{mhWhiteMiss}%</span>
+          <span className="text-black tabular-nums">{mhWhiteMiss}%</span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">OH White Miss Chance</span>
-          <span className="text-[#1861ac] font-bold font-mono">{ohWhiteMiss}%</span>
+          <span className="text-[#1861ac] font-bold tabular-nums">{ohWhiteMiss}%</span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">Dodge Chance</span>
-          <span className="text-black font-mono">{dodgeChance}%</span>
+          <span className="text-black tabular-nums">{dodgeChance}%</span>
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">MH White Crit Cap</span>
-          <span className="text-black font-mono">
+          <span className="text-black tabular-nums">
             {mhCritCap}%
             {critOverCap > 0 ? (
               <span className="text-[#d93025] font-bold ml-1">(Over by {critOverCap.toFixed(2)}%)</span>

@@ -303,7 +303,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
         <div className="space-y-2">
           {apl.map((item, idx) => (
             <div key={item.id || idx} className="flex flex-wrap md:flex-nowrap items-center gap-2.5 p-2 bg-white border border-[#dddddd] rounded hover:border-[#bbbbbb] transition-colors">
-              <span className="font-mono text-xs font-bold text-[#888888] w-6 shrink-0">#{idx + 1}</span>
+              <span className="font-sans text-xs font-bold text-[#888888] w-6 shrink-0 tabular-nums">#{idx + 1}</span>
               <input type="checkbox" checked={item.enabled} onChange={() => toggleRow(idx)} className="w-4 h-4 text-[#1861ac] cursor-pointer shrink-0" />
               <img
                 src={getAbilityIconUrl(APL_ABILITIES.find((a) => a.value === item.ability)?.label || item.ability, 'medium')}
@@ -329,7 +329,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
                         type="number"
                         value={cond.value ?? 0}
                         onChange={(e) => updateCondValue(idx, cIdx, +e.target.value)}
-                        className="ww-inline-input w-12 text-[11px] font-mono px-0.5"
+                        className="ww-inline-input w-12 text-[11px] font-sans tabular-nums px-0.5"
                       />
                     )}
                     {['buff_active', 'buff_inactive'].includes(cond.type) && (

@@ -272,7 +272,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
       {/* Progress Bar during Batch Simulation */}
       {isSimulating && simulationProgress && (
         <div className="mb-2 bg-[#f0f4f8] border border-[#1861ac] rounded p-2 text-xs">
-          <div className="flex justify-between text-[#1861ac] font-mono font-medium mb-1">
+          <div className="flex justify-between text-[#1861ac] font-medium mb-1 tabular-nums">
             <span>Batch Simulating Candidate Items...</span>
             <span>
               {simulationProgress.completed} / {simulationProgress.total} ({simulationProgress.pct}%)
@@ -414,7 +414,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                         <div className="flex items-center">
                           <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
                           {item.isCustom && (
-                            <span className="ml-1 px-1 py-0.2 text-[9px] rounded bg-[#4f378b] text-white font-mono">
+                            <span className="ml-1 px-1 py-0.2 text-[9px] rounded bg-[#4f378b] text-white font-sans font-medium">
                               Custom
                             </span>
                           )}
@@ -437,27 +437,27 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                     </td>
 
                     {isWeaponSlot && (
-                      <td className="p-1.5 font-mono text-[11px] text-[#444444]">
+                      <td className="p-1.5 tabular-nums text-[11px] text-[#444444]">
                         {item.speed ? `${item.speed}s • ${item.dps} DPS` : '-'}
                       </td>
                     )}
 
-                    <td className="p-1.5 text-right font-mono">{item.str || '-'}</td>
-                    <td className="p-1.5 text-right font-mono">{item.agi || '-'}</td>
-                    <td className="p-1.5 text-right font-mono">{item.sta || '-'}</td>
-                    <td className="p-1.5 text-right font-mono font-medium">{item.ap || '-'}</td>
-                    <td className="p-1.5 text-right font-mono">{item.crit ? `${item.crit}%` : '-'}</td>
-                    <td className="p-1.5 text-right font-mono">{item.hit ? `${item.hit}%` : '-'}</td>
-                    <td className="p-1.5 text-right font-mono text-[#1861ac] font-bold">
+                    <td className="p-1.5 text-right tabular-nums">{item.str || '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums">{item.agi || '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums">{item.sta || '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums font-medium">{item.ap || '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums">{item.crit ? `${item.crit}%` : '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums">{item.hit ? `${item.hit}%` : '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums text-[#1861ac] font-bold">
                       {item.ohHit ? `+${item.ohHit}%` : '-'}
                     </td>
-                    <td className="p-1.5 text-right font-mono">{item.haste ? `${item.haste}%` : '-'}</td>
+                    <td className="p-1.5 text-right tabular-nums">{item.haste ? `${item.haste}%` : '-'}</td>
 
-                    <td className="p-1.5 text-right font-mono font-bold text-[#1861ac]">
+                    <td className="p-1.5 text-right tabular-nums font-bold text-[#1861ac]">
                       {batch ? dpsVal.toFixed(1) : '-'}
                     </td>
 
-                    <td className="p-1.5 text-right pr-4 font-mono font-bold">
+                    <td className="p-1.5 text-right pr-4 tabular-nums font-bold">
                       {isEquipped ? (
                         <span className="text-[#1861ac] text-[11px]">Equipped</span>
                       ) : batch ? (

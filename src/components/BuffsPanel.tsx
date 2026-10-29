@@ -249,7 +249,7 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
             >
               <div className="bg-[#eeeeee] px-3 py-2 border-b border-[#dddddd] flex items-center justify-between font-bold text-xs uppercase tracking-wider text-black">
                 <span>{cat.title}</span>
-                <span className="text-[11px] font-mono text-[#666666]">
+                <span className="text-[11px] font-sans font-medium text-[#666666]">
                   {activeCount} Active
                 </span>
               </div>
@@ -301,7 +301,7 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
                             setNumericBuff(buff.id, Number(e.target.value));
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className="ww-inline-input text-xs border border-[#999999] rounded px-1 py-0.5 ml-1 font-mono font-bold"
+                          className="ww-inline-input text-xs border border-[#999999] rounded px-1 py-0.5 ml-1 font-sans font-bold tabular-nums"
                         >
                           {Array.from({ length: (buff.max || 5) + 1 }, (_, i) => (
                             <option key={i} value={i}>

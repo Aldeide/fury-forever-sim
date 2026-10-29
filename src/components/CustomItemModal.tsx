@@ -216,7 +216,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
                     <Download className="w-3.5 h-3.5 text-[#1861ac]" />
                     <span>Quick Import from Wowhead</span>
                   </span>
-                  <span className="text-[10px] text-[#666666] font-mono">
+                  <span className="text-[10px] text-[#666666]">
                     Accepts Item ID or Wowhead URL
                   </span>
                 </div>
@@ -233,7 +233,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
                       }
                     }}
                     placeholder="Paste Wowhead Item URL or ID (e.g. 19019 or classic/item=19364)..."
-                    className="flex-1 bg-white border border-[#cccccc] rounded px-3 py-1.5 text-xs text-black placeholder-[#888888] focus:outline-none focus:border-[#1861ac] font-mono"
+                    className="flex-1 bg-white border border-[#cccccc] rounded px-3 py-1.5 text-xs text-black placeholder-[#888888] focus:outline-none focus:border-[#1861ac]"
                   />
                   <button
                     type="button"
@@ -334,7 +334,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
                   Item Attributes
                 </span>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-sans tabular-nums">
                   <div>
                     <label className="text-[11px] text-[#555555] block">Strength</label>
                     <input
@@ -419,7 +419,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
                   <span className="text-xs font-bold uppercase tracking-wider text-black block mb-2.5">
                     Weapon Properties
                   </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-sans tabular-nums">
                     <div>
                       <label className="text-[11px] text-[#555555] block">Weapon Type</label>
                       <select

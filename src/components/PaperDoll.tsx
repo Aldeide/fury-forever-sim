@@ -107,7 +107,7 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
                   <div className="truncate font-semibold leading-tight flex items-center gap-1.5">
                     <span>{label}</span>
                     {id === 'mainhand' && isTwoHandEquipped && (
-                      <span className="text-[9px] bg-[#d93025] text-white px-1 py-0.2 rounded font-mono font-bold">
+                      <span className="text-[9px] bg-[#d93025] text-white px-1 py-0.2 rounded font-sans font-bold">
                         2H
                       </span>
                     )}
