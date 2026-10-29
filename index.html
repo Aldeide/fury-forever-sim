@@ -9,8 +9,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <!-- COOP & COEP Service Worker fallback -->
-    <script src="./coi-serviceworker.js"></script>
+    <meta name="referrer" content="no-referrer" />
+    <!-- Service Worker Cleanup -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          var unregistered = false;
+          for (var i = 0; i < registrations.length; i++) {
+            registrations[i].unregister();
+            unregistered = true;
+          }
+          if ((unregistered || window.crossOriginIsolated) && !sessionStorage.getItem('sw_cleared_v2')) {
+            sessionStorage.setItem('sw_cleared_v2', '1');
+            window.location.reload();
+          }
+        });
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>" />
   </head>
   <body class="bg-white text-black min-h-screen font-sans antialiased selection:bg-[#aac7fb] selection:text-black">

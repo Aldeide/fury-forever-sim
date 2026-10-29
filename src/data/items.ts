@@ -1708,7 +1708,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Timbermaw Hold (Ursoc Ritual)',
     phase: 'WoW: Forever',
-    icon: 'inv_misc_totem_01',
+    icon: 'spell_nature_earthbindtotem',
   },
 
   // ==========================================
@@ -2075,7 +2075,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
     wowheadId: 18816,
-    icon: 'inv_knife_03',
+    icon: 'inv_sword_48',
   },
   {
     id: 'core-hound-tooth',
@@ -2112,7 +2112,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     source: 'Temple of Ahn\'Qiraj (C\'Thun)',
     phase: 'Phase 5',
     wowheadId: 21126,
-    icon: 'inv_knife_04',
+    icon: 'inv_weapon_shortblade_33',
   },
   {
     id: 'kingsfall',
@@ -2130,7 +2130,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
     wowheadId: 22802,
-    icon: 'inv_knife_05',
+    icon: 'inv_weapon_shortblade_37',
   },
   {
     id: 'thunderfury-blessed-blade-of-the-windseeker',

@@ -257,7 +257,7 @@ export const BUFFS_DATABASE: BuffDefinition[] = [
     id: 'trueshotAura',
     name: 'Trueshot Aura',
     category: 'raid',
-    icon: 'ability_trueshotaura',
+    icon: 'ability_trueshot',
     description: '+100 Ranged and Melee Attack Power (Marksman Hunter)',
     stats: { ap: 100 },
     defaultValue: true,
