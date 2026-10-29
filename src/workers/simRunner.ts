@@ -63,11 +63,23 @@ export async function runSimulation(
   iterations = 2500,
   onProgress?: (pct: number) => void
 ): Promise<SimResult> {
+  const runSeed = config.encounter?.seed && config.encounter.seed > 0
+    ? config.encounter.seed
+    : Math.floor(Math.random() * 2147483646) + 1;
+  const runConfig: SimConfig = {
+    ...config,
+    encounter: {
+      ...(config.encounter || {}),
+      seed: runSeed,
+      durationVariationSec: config.encounter?.durationVariationSec ?? 5,
+    },
+  };
+
   // 1. Tauri Native IPC if in Desktop App
   if (isTauriEnvironment()) {
     try {
       const { invoke } = (window as any).__TAURI__.tauri || (window as any).__TAURI__.core;
-      const res = await invoke('run_sim', { config, iterations });
+      const res = await invoke('run_sim', { config: runConfig, iterations });
       if (res) return typeof res === 'string' ? JSON.parse(res) : res;
     } catch (e) {
       console.warn('Tauri invoke fallback to local worker:', e);
@@ -97,14 +109,14 @@ export async function runSimulation(
       worker.postMessage({
         id: reqId,
         type: 'SIMULATE',
-        payload: { config, iterations },
+        payload: { config: runConfig, iterations },
       });
     });
   }
 
   // 3. Direct synchronous engine fallback
   if (onProgress) onProgress(100);
-  return simulateCombat(config, iterations);
+  return simulateCombat(runConfig, iterations);
 }
 
 /**

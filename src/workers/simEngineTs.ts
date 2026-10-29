@@ -302,14 +302,17 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
 /**
  * Combat Simulation Engine (Pure TypeScript)
  */
-export function simulateCombat(config: SimConfig, iterations = 2000): SimResult {
+export function simulateCombat(config: SimConfig, iterations = 2500): SimResult {
   const t0 = performance.now();
   const stats = calculateCharacterSheet(config);
-  const { encounter, rotation, talents = {}, buffs = {} } = config;
+  const { encounter = {}, rotation = {}, talents = {}, buffs = {} } = config;
   const duration = encounter.durationSec || encounter.duration || 60;
   const isDualWield = !config.gear?.twohand && !!config.gear?.offhand;
 
-  const rng = new FastRng(42);
+  const rawSeed = config.encounter?.seed && config.encounter.seed > 0
+    ? config.encounter.seed
+    : Math.floor(Math.random() * 2147483646) + 1;
+  const rng = new FastRng(rawSeed);
 
   const targetLevel = encounter.bossLevel || encounter.targetLevel || 63;
   const yellowMissChance = stats.yellowMissPct / 100.0;
@@ -374,8 +377,13 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
   let totalCrusaderOhTime = 0.0;
   let totalDeathWishTime = 0.0;
   let totalFlurryTime = 0.0;
+  let totalFightTime = 0.0;
 
   for (let it = 0; it < iterations; it++) {
+    const durationVar = encounter.durationVariationSec ?? 5.0;
+    const iterDuration = durationVar > 0 ? Math.max(10, duration + (rng.next() * 2 - 1) * durationVar) : duration;
+    totalFightTime += iterDuration;
+
     let time = 0.0;
     let rage = buffs.mightyRagePotion ? 60 : 0;
     if (rotation.useBloodrage) rage = Math.min(maxRage, rage + 20);
@@ -405,7 +413,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
 
     const timeStep = 0.1;
     const executePct = encounter.executePhasePct ?? encounter.executePercentage ?? 20;
-    const executeThresholdTime = duration * (1.0 - executePct / 100.0);
+    const executeThresholdTime = iterDuration * (1.0 - executePct / 100.0);
 
     const checkTouchOfTheGrave = () => {
       if (isUndead && time >= touchOfTheGraveCd) {
@@ -418,7 +426,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
       }
     };
 
-    while (time < duration) {
+    while (time < iterDuration) {
       if (rotation.useDeathWish && talents.deathWish && deathWishActiveUntil < time - 180 && time >= (rotation.deathWishTiming || 0)) {
         if (rage >= 10) {
           rage -= 10;
@@ -768,13 +776,13 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
       if (racialCd > 0) racialCd -= timeStep;
     }
 
-    const fightDps = fightDamage / duration;
+    const fightDps = fightDamage / iterDuration;
     fightDpsList[it] = fightDps;
     totalSimDamage += fightDamage;
   }
 
   fightDpsList.sort((a, b) => a - b);
-  const totalDps = totalSimDamage / (duration * iterations);
+  const totalDps = totalFightTime > 0 ? totalSimDamage / totalFightTime : 0;
   const minDps = fightDpsList[0];
   const maxDps = fightDpsList[fightDpsList.length - 1];
   const medianDps = fightDpsList[Math.floor(fightDpsList.length / 2)];
@@ -791,7 +799,7 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
     .map((name) => {
       const a = abilityStats[name];
       const dmg = a.damage / iterations;
-      const dps = dmg / duration;
+      const dps = totalFightTime > 0 ? a.damage / totalFightTime : 0;
       const pct = totalDps > 0 ? (dps / totalDps) * 100.0 : 0;
       const casts = Math.max(1, Math.round(a.casts / iterations));
       return {
@@ -828,7 +836,6 @@ export function simulateCombat(config: SimConfig, iterations = 2000): SimResult 
   }
 
   const executionTimeMs = Math.round(performance.now() - t0);
-  const totalFightTime = duration * iterations;
   const procUptimes: Record<string, number> = {};
   if (totalFightTime > 0) {
     if (totalBloodFuryTime > 0) procUptimes['Blood Fury'] = +((totalBloodFuryTime / totalFightTime) * 100).toFixed(1);
@@ -876,7 +883,13 @@ export function runBatchSlotTs(
   const { slot, candidateItemIds, candidateItems, baseConfig, iterationsPerItem = 1200 } = request;
   const t0 = performance.now();
 
-  const baselineResult = simulateCombat(baseConfig, iterationsPerItem);
+  const batchSeed = Math.floor(Math.random() * 2147483646) + 1;
+  const baseConfigWithSeed: SimConfig = {
+    ...baseConfig,
+    encounter: { ...(baseConfig.encounter || {}), seed: batchSeed },
+  };
+
+  const baselineResult = simulateCombat(baseConfigWithSeed, iterationsPerItem);
   const baselineDps = baselineResult.meanDps || baselineResult.dps || 1000;
 
   const results: BatchItemResult[] = [];
@@ -894,6 +907,7 @@ export function runBatchSlotTs(
     const testConfig: SimConfig = {
       ...baseConfig,
       gear: clonedGear,
+      encounter: { ...(baseConfig.encounter || {}), seed: batchSeed },
     };
 
     const simRes = simulateCombat(testConfig, iterationsPerItem);
@@ -937,7 +951,12 @@ export function runStatWeightsTs(
   iterations = 1500,
   onProgress?: (completed: number, total: number) => void
 ): StatWeightsResult {
-  const baseline = simulateCombat(config, iterations);
+  const batchSeed = Math.floor(Math.random() * 2147483646) + 1;
+  const configWithSeed: SimConfig = {
+    ...config,
+    encounter: { ...(config.encounter || {}), seed: batchSeed },
+  };
+  const baseline = simulateCombat(configWithSeed, iterations);
   const baseDps = baseline.meanDps || baseline.dps || 1000;
 
   const deltaStats = [
@@ -966,6 +985,7 @@ export function runStatWeightsTs(
     const testConfig: SimConfig = {
       ...config,
       gear: phantomGear,
+      encounter: { ...(config.encounter || {}), seed: batchSeed },
     };
 
     const res = simulateCombat(testConfig, iterations);
