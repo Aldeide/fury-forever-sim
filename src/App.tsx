@@ -99,9 +99,22 @@ export const App: React.FC = () => {
     }
   });
 
+  // Deleted Preset IDs (built-in presets removed by user) saved to localStorage
+  const [deletedPresetIds, setDeletedPresetIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('wow_forever_deleted_presets');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const allPresets = useMemo(() => {
-    return [...PRESETS, ...customPresets];
-  }, [customPresets]);
+    return [
+      ...PRESETS.filter((p) => !deletedPresetIds.includes(p.id)),
+      ...customPresets,
+    ];
+  }, [deletedPresetIds, customPresets]);
 
   // Initial preset
   const defaultPreset = allPresets[0] || PRESETS[0];
@@ -349,14 +362,31 @@ export const App: React.FC = () => {
 
   // Delete Preset
   const handleDeletePreset = (presetId: string) => {
-    const updated = customPresets.filter((p) => p.id !== presetId);
-    setCustomPresets(updated);
+    const updatedCustom = customPresets.filter((p) => p.id !== presetId);
+    setCustomPresets(updatedCustom);
     try {
-      localStorage.setItem('wow_forever_saved_presets', JSON.stringify(updated));
+      localStorage.setItem('wow_forever_saved_presets', JSON.stringify(updatedCustom));
     } catch (e) {
       console.warn('Failed to delete preset from localStorage:', e);
     }
-    const remaining = [...PRESETS, ...updated];
+
+    let updatedDeleted = deletedPresetIds;
+    if (PRESETS.some((p) => p.id === presetId)) {
+      if (!deletedPresetIds.includes(presetId)) {
+        updatedDeleted = [...deletedPresetIds, presetId];
+        setDeletedPresetIds(updatedDeleted);
+        try {
+          localStorage.setItem('wow_forever_deleted_presets', JSON.stringify(updatedDeleted));
+        } catch (e) {
+          console.warn('Failed to save deleted presets to localStorage:', e);
+        }
+      }
+    }
+
+    const remaining = [
+      ...PRESETS.filter((p) => !updatedDeleted.includes(p.id)),
+      ...updatedCustom,
+    ];
     if (remaining.length > 0) {
       handleSelectPreset(remaining[0].id);
     }

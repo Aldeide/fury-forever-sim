@@ -296,8 +296,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
       <section className="space-y-3">
         <div className="border-b border-black pb-1.5 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-bold tracking-tight uppercase text-black">APL — Action Priority List (WoWSims Style)</h2>
-            <div className="text-[11px] text-[#555555]">Priority-ordered decision tree evaluated every GCD &amp; swing update</div>
+            <h2 className="text-sm font-bold tracking-tight uppercase text-black">APL — Action Priority List</h2>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => syncApl(DEFAULT_FURY_APL)} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">Default Fury (DW)</button>
