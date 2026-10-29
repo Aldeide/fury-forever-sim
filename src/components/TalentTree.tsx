@@ -19,7 +19,7 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
 
   const handleAddPoint = (node: TalentTreeNode, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    const current = Number(talents[node.id] || 0);
+    const current = Math.min(node.maxRank, Math.max(0, Number(talents[node.id] || 0)));
     if (current >= node.maxRank || remainingPoints <= 0) return;
 
     onChange({
@@ -30,7 +30,7 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
 
   const handleRemovePoint = (node: TalentTreeNode, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    const current = Number(talents[node.id] || 0);
+    const current = Math.min(node.maxRank, Math.max(0, Number(talents[node.id] || 0)));
     if (current <= 0) return;
 
     const updated = { ...talents };
@@ -96,13 +96,13 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
             onClick={() => onChange(DEFAULT_TALENTS_17_34)}
             className="px-3 py-1.5 text-xs font-semibold rounded bg-[#1861ac] hover:bg-[#144e8c] text-white transition-all shadow-sm"
           >
-            Load 17/34 DW Fury
+            Load 19/32 DW Fury
           </button>
           <button
             onClick={() => onChange(DEFAULT_TALENTS_2H)}
             className="px-3 py-1.5 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] transition-all shadow-sm"
           >
-            Load 20/31 2H Fury
+            Load 39/10/2 2H Arms
           </button>
           <button
             onClick={resetAllTalents}
@@ -146,7 +146,10 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
                         return <div key={colNum} className="w-[40px] h-[40px]" />;
                       }
 
-                      const rank = Number(talents[node.id] || 0);
+                      const rank = Math.min(
+                        node.maxRank,
+                        Math.max(0, Number(talents[node.id] || 0))
+                      );
                       const isMaxed = rank === node.maxRank;
                       const isAllocated = rank > 0;
                       const desc = isAllocated
