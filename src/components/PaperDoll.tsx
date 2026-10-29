@@ -56,7 +56,7 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
   );
 
   return (
-    <div className="w-full bg-white border border-[#dddddd] rounded p-2 flex flex-col h-full select-none overflow-y-auto">
+    <div className="w-full bg-white p-2.5 flex flex-col h-full select-none overflow-y-auto">
       <div className="text-[11px] uppercase tracking-wider font-bold text-[#666666] px-2 mb-1.5">
         Equipment Slots
       </div>

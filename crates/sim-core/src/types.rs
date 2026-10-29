@@ -46,6 +46,7 @@ pub struct TalentConfig {
     pub impale: u8,                 // +10/+20% yellow ability crit damage multiplier
     pub weaponmaster: u8,           // WoW: Forever consolidated Weapon Mastery (+3/+5 weapon skill & +1/+2% crit)
     pub two_handed_weapon_specialization: u8, // +1..5% 2H damage
+    pub mortal_strike: u8,                  // 0..1 -> Arms Row 7 (instant weapon dmg + 160, 30 rage, 6s CD)
     // Fury
     pub cruelty: u8,                // +1..5% crit
     pub booming_voice: u8,
@@ -144,9 +145,34 @@ pub struct BuffConfig {
     pub dense_dynamite: bool,       // 340-460 fire dmg explosive
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AplCondition {
+    #[serde(rename = "type")]
+    pub condition_type: String,
+    pub value: Option<f64>,
+    pub buff: Option<String>,
+    pub target_buff: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AplRow {
+    #[serde(default)]
+    pub id: Option<String>,
+    pub enabled: bool,
+    pub ability: String,
+    #[serde(default)]
+    pub conditions: Vec<AplCondition>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RotationConfig {
+    #[serde(default)]
+    pub apl: Option<Vec<AplRow>>,
     pub use_bloodthirst: bool,
     pub use_whirlwind: bool,
     pub use_heroic_strike: bool,
@@ -171,6 +197,7 @@ pub struct RotationConfig {
 impl Default for RotationConfig {
     fn default() -> Self {
         Self {
+            apl: None,
             use_bloodthirst: true,
             use_whirlwind: true,
             use_heroic_strike: true,

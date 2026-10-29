@@ -352,4 +352,92 @@ mod tests {
         assert!(exec.is_some(), "Execute should be cast during execute phase");
         assert!(bt.unwrap().casts > 0.0, "BT casts should be > 0 during execute phase with high AP/pooling");
     }
+
+    #[test]
+    fn test_deep_wounds_hit_pct_and_casts_match() {
+        let mut cfg = create_test_config();
+        cfg.talents.deep_wounds = 3;
+        cfg.talents.cruelty = 5;
+        cfg.encounter.duration_sec = 60.0;
+        cfg.encounter.iterations = 100;
+        let res = run_sim(&cfg);
+
+        let dw = res.abilities.iter().find(|a| a.name == "Deep Wounds");
+        assert!(dw.is_some(), "Deep Wounds must appear in abilities breakdown when talented");
+        let dw = dw.unwrap();
+        assert!(dw.casts > 0.0, "Deep Wounds casts must be > 0");
+        assert!((dw.hit_pct - 100.0).abs() < 1e-4, "Deep Wounds hit_pct must be exactly 100.0%, got {}", dw.hit_pct);
+        assert!(dw.dps > 0.0 && dw.dps < res.mean_dps, "Deep Wounds DPS must be positive and realistic");
+    }
+
+    #[test]
+    fn test_apl_heroic_strike_unchecked_never_casts() {
+        let mut cfg = create_test_config();
+        cfg.encounter.duration_sec = 60.0;
+        cfg.encounter.iterations = 100;
+        // Even if legacy rotation.use_heroic_strike is true, APL takes full precedence!
+        cfg.rotation.use_heroic_strike = true;
+
+        // 1. With heroic_strike row UNCHECKED (enabled: false)
+        cfg.rotation.apl = Some(vec![
+            AplRow {
+                id: Some("1".to_string()),
+                enabled: true,
+                ability: "bloodthirst".to_string(),
+                conditions: vec![AplCondition { condition_type: "always".to_string(), value: None, buff: None, target_buff: None }],
+                note: None,
+            },
+            AplRow {
+                id: Some("2".to_string()),
+                enabled: true,
+                ability: "whirlwind".to_string(),
+                conditions: vec![AplCondition { condition_type: "always".to_string(), value: None, buff: None, target_buff: None }],
+                note: None,
+            },
+            AplRow {
+                id: Some("3".to_string()),
+                enabled: false, // User unchecked Heroic Strike!
+                ability: "heroic_strike".to_string(),
+                conditions: vec![AplCondition { condition_type: "always".to_string(), value: None, buff: None, target_buff: None }],
+                note: None,
+            },
+        ]);
+
+        let res_disabled = run_sim(&cfg);
+        let hs_disabled = res_disabled.abilities.iter().find(|a| a.name == "Heroic Strike");
+        assert!(
+            hs_disabled.is_none() || hs_disabled.unwrap().casts == 0.0,
+            "When heroic_strike is unchecked in APL, it must NEVER cast"
+        );
+
+        // 2. With heroic_strike row ENABLED (enabled: true)
+        cfg.rotation.apl = Some(vec![
+            AplRow {
+                id: Some("1".to_string()),
+                enabled: true,
+                ability: "bloodthirst".to_string(),
+                conditions: vec![AplCondition { condition_type: "always".to_string(), value: None, buff: None, target_buff: None }],
+                note: None,
+            },
+            AplRow {
+                id: Some("2".to_string()),
+                enabled: true,
+                ability: "whirlwind".to_string(),
+                conditions: vec![AplCondition { condition_type: "always".to_string(), value: None, buff: None, target_buff: None }],
+                note: None,
+            },
+            AplRow {
+                id: Some("3".to_string()),
+                enabled: true, // User checked Heroic Strike!
+                ability: "heroic_strike".to_string(),
+                conditions: vec![AplCondition { condition_type: "rage_gte".to_string(), value: Some(40.0), buff: None, target_buff: None }],
+                note: None,
+            },
+        ]);
+
+        let res_enabled = run_sim(&cfg);
+        let hs_enabled = res_enabled.abilities.iter().find(|a| a.name == "Heroic Strike");
+        assert!(hs_enabled.is_some(), "When heroic_strike is enabled in APL, it should be cast");
+        assert!(hs_enabled.unwrap().casts > 0.0, "Heroic strike casts must be > 0 when enabled");
+    }
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   RotationConfig,
   AplActionItem,
@@ -9,6 +9,7 @@ import {
   TalentConfig,
 } from '../types/sim';
 import { getAbilityIconUrl } from '../utils/wowhead';
+import * as SpellAnalyzerModule from '../utils/spellAnalyzer';
 
 export interface RotationPanelProps {
   rotation: RotationConfig;
@@ -19,27 +20,41 @@ export interface RotationPanelProps {
   talents?: TalentConfig;
 }
 
-const DEFAULT_FURY_APL: AplActionItem[] = [
-  { id: '1', enabled: true, ability: 'death_wish', conditions: [{ type: 'time_remaining_lte', value: 30 }] },
-  { id: '2', enabled: true, ability: 'recklessness', conditions: [{ type: 'time_remaining_lte', value: 15 }] },
-  { id: '3', enabled: true, ability: 'bloodrage', conditions: [{ type: 'always' }] },
-  { id: '4', enabled: true, ability: 'mighty_rage_potion', conditions: [{ type: 'execute_phase' }] },
-  { id: '5', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'always' }] },
-  { id: '6', enabled: true, ability: 'whirlwind', conditions: [{ type: 'always' }] },
-  { id: '7', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }] },
-  { id: '8', enabled: true, ability: 'overpower', conditions: [{ type: 'rage_lte', value: 35 }] },
-  { id: '9', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'rage_gte', value: 45 }] },
+export const DEFAULT_FURY_APL: AplActionItem[] = [
+  { id: 'f1', enabled: true, ability: 'death_wish', conditions: [{ type: 'rage_gte', value: 10 }, { type: 'time_remaining_lte', value: 32 }] },
+  { id: 'f2', enabled: true, ability: 'recklessness', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+  { id: 'f3', enabled: true, ability: 'racial', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+  { id: 'f4', enabled: true, ability: 'trinkets', conditions: [{ type: 'always' }] },
+  { id: 'f5', enabled: true, ability: 'mighty_rage_potion', conditions: [{ type: 'buff_active', buff: 'death_wish' }, { type: 'rage_lte', value: 35 }] },
+  { id: 'f6', enabled: true, ability: 'bloodrage', conditions: [{ type: 'rage_lte', value: 75 }] },
+  { id: 'f7', enabled: true, ability: 'berserker_rage', conditions: [{ type: 'always' }] },
+  { id: 'f8', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'execute_phase' }, { type: 'ap_gte', value: 2000 }, { type: 'rage_gte', value: 30 }] },
+  { id: 'f9', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'execute_phase' }, { type: 'ap_gte', value: 1000 }, { type: 'rage_gte', value: 45 }] },
+  { id: 'f10', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }, { type: 'rage_gte', value: 10 }] },
+  { id: 'f11', enabled: true, ability: 'whirlwind', conditions: [{ type: 'non_execute_phase' }, { type: 'targets_gte', value: 2 }, { type: 'rage_gte', value: 22 }] },
+  { id: 'f12', enabled: true, ability: 'overpower', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_lte', value: 25 }, { type: 'bt_ww_cd' }] },
+  { id: 'f13', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 30 }] },
+  { id: 'f14', enabled: true, ability: 'whirlwind', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 22 }] },
+  { id: 'f15', enabled: true, ability: 'hamstring', conditions: [{ type: 'non_execute_phase' }, { type: 'bt_ww_cd' }, { type: 'rage_gte', value: 55 }] },
+  { id: 'f16', enabled: true, ability: 'cleave', conditions: [{ type: 'non_execute_phase' }, { type: 'targets_gte', value: 2 }, { type: 'rage_gte', value: 40 }] },
+  { id: 'f17', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 40 }] },
 ];
 
-const DEFAULT_ARMS_APL: AplActionItem[] = [
-  { id: 'a1', enabled: true, ability: 'death_wish', conditions: [{ type: 'time_remaining_lte', value: 30 }] },
-  { id: 'a2', enabled: true, ability: 'bloodrage', conditions: [{ type: 'always' }] },
-  { id: 'a3', enabled: true, ability: 'mortal_strike', conditions: [{ type: 'always' }] },
-  { id: 'a4', enabled: true, ability: 'whirlwind', conditions: [{ type: 'always' }] },
-  { id: 'a5', enabled: true, ability: 'overpower', conditions: [{ type: 'rage_lte', value: 40 }] },
-  { id: 'a6', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }] },
-  { id: 'a7', enabled: true, ability: 'slam', conditions: [{ type: 'bt_ww_cd' }] },
-  { id: 'a8', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'rage_gte', value: 50 }] },
+export const DEFAULT_ARMS_APL: AplActionItem[] = [
+  { id: 'a1', enabled: true, ability: 'death_wish', conditions: [{ type: 'rage_gte', value: 10 }, { type: 'time_remaining_lte', value: 32 }] },
+  { id: 'a2', enabled: true, ability: 'recklessness', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+  { id: 'a3', enabled: true, ability: 'racial', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+  { id: 'a4', enabled: true, ability: 'trinkets', conditions: [{ type: 'always' }] },
+  { id: 'a5', enabled: true, ability: 'mighty_rage_potion', conditions: [{ type: 'buff_active', buff: 'death_wish' }, { type: 'rage_lte', value: 35 }] },
+  { id: 'a6', enabled: true, ability: 'bloodrage', conditions: [{ type: 'rage_lte', value: 75 }] },
+  { id: 'a7', enabled: true, ability: 'berserker_rage', conditions: [{ type: 'always' }] },
+  { id: 'a8', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }, { type: 'rage_gte', value: 13 }] },
+  { id: 'a9', enabled: true, ability: 'mortal_strike', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 30 }] },
+  { id: 'a10', enabled: true, ability: 'whirlwind', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 25 }] },
+  { id: 'a11', enabled: true, ability: 'overpower', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_lte', value: 25 }, { type: 'bt_ww_cd' }] },
+  { id: 'a12', enabled: true, ability: 'slam', conditions: [{ type: 'non_execute_phase' }, { type: 'bt_ww_cd' }, { type: 'rage_gte', value: 30 }] },
+  { id: 'a13', enabled: true, ability: 'cleave', conditions: [{ type: 'non_execute_phase' }, { type: 'targets_gte', value: 2 }, { type: 'rage_gte', value: 45 }] },
+  { id: 'a14', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 50 }] },
 ];
 
 const APL_ABILITIES: Array<{ value: AplActionItem['ability']; label: string }> = [
@@ -55,9 +70,11 @@ const APL_ABILITIES: Array<{ value: AplActionItem['ability']; label: string }> =
   { value: 'death_wish', label: 'Death Wish' },
   { value: 'recklessness', label: 'Recklessness' },
   { value: 'bloodrage', label: 'Bloodrage' },
+  { value: 'berserker_rage', label: 'Berserker Rage' },
   { value: 'mighty_rage_potion', label: 'Mighty Rage Potion' },
   { value: 'racial', label: 'Racial Cooldown' },
   { value: 'trinkets', label: 'Trinkets' },
+  { value: 'sapper', label: 'Goblin Sapper Charge' },
 ];
 
 const COND_LABELS: Record<string, string> = {
@@ -69,14 +86,33 @@ const COND_LABELS: Record<string, string> = {
   ap_gte: 'AP ≥',
   time_remaining_lte: 'Time ≤',
   bt_ww_cd: 'BT/WW on CD',
+  targets_gte: 'Targets ≥',
+  buff_active: 'Buff Active',
+  buff_inactive: 'Buff Inactive',
 };
 
-export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange }) => {
-  const apl = rotation.apl || DEFAULT_FURY_APL;
+const BUFF_CHOICES: Array<{ value: string; label: string }> = [
+  { value: 'death_wish', label: 'Death Wish' },
+  { value: 'recklessness', label: 'Recklessness' },
+  { value: 'flurry', label: 'Flurry' },
+  { value: 'crusader', label: 'Crusader' },
+  { value: 'eureka', label: 'Eureka!' },
+  { value: 'blood_fury', label: 'Blood Fury' },
+  { value: 'berserking', label: 'Berserking' },
+  { value: 'enrage', label: 'Enrage' },
+  { value: 'earthstrike', label: 'Earthstrike' },
+  { value: 'diamond_flask', label: 'Diamond Flask' },
+  { value: 'mighty_rage_potion', label: 'Mighty Rage Potion' },
+];
 
-  const updateField = <K extends keyof RotationConfig>(key: K, value: RotationConfig[K]) => {
-    onChange({ ...rotation, [key]: value });
-  };
+export const RotationPanel: React.FC<RotationPanelProps> = ({
+  rotation,
+  onChange,
+  simConfig,
+  race,
+  talents,
+}) => {
+  const apl = rotation.apl || DEFAULT_FURY_APL;
 
   const syncApl = (newApl: AplActionItem[]) => {
     const updated: RotationConfig = { ...rotation, apl: newApl };
@@ -84,6 +120,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
     updated.useBloodthirst = has('bloodthirst');
     updated.useWhirlwind = has('whirlwind');
     updated.useHeroicStrike = has('heroic_strike');
+    updated.useCleave = has('cleave');
     updated.useExecute = has('execute');
     updated.executePhase = has('execute');
     updated.useOverpower = has('overpower');
@@ -91,6 +128,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
     updated.useDeathWish = has('death_wish');
     updated.useRecklessness = has('recklessness');
     updated.useBloodrage = has('bloodrage');
+    updated.useBerserkerRage = has('berserker_rage');
     updated.useMightyRagePotion = has('mighty_rage_potion');
 
     for (const item of newApl) {
@@ -107,6 +145,11 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
           updated.hsRageThreshold = rCond.value;
           updated.heroicStrikeRageThreshold = rCond.value;
         }
+      } else if (item.ability === 'cleave') {
+        const rCond = item.conditions.find((c) => c.type === 'rage_gte');
+        if (rCond?.value !== undefined) {
+          updated.cleaveRageThreshold = rCond.value;
+        }
       } else if (item.ability === 'overpower') {
         const rCond = item.conditions.find((c) => c.type === 'rage_lte');
         if (rCond?.value !== undefined) {
@@ -119,6 +162,67 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
       }
     }
     onChange(updated);
+  };
+
+  useEffect(() => {
+    if (rotation.apl && rotation.apl.length > 0) {
+      syncApl(rotation.apl);
+    }
+  }, []);
+
+  const handleAutoOptimizeApl = () => {
+    try {
+      const spellModule = SpellAnalyzerModule as any;
+      let optimal: AplActionItem[] | undefined;
+
+      const effectiveConfig: SimConfig = {
+        race: race || 'orc',
+        talents: talents || {},
+        gear: {},
+        buffs: {},
+        encounter: { duration: 60, targetLevel: 63, bossLevel: 63, targets: 1 },
+        ...(simConfig || {}),
+        rotation,
+      };
+
+      if (typeof spellModule.generateOptimalApl === 'function') {
+        optimal = spellModule.generateOptimalApl(effectiveConfig);
+      }
+
+      if (!optimal || optimal.length === 0) {
+        const hasMs = !!talents?.mortalStrike;
+        if (hasMs) {
+          optimal = DEFAULT_ARMS_APL;
+        } else {
+          const impExec = talents?.improvedExecute ?? 2;
+          const btBreak = impExec === 2 ? 2000 : impExec === 1 ? 1900 : 1833;
+          optimal = [
+            { id: 'o1', enabled: true, ability: 'death_wish', conditions: [{ type: 'rage_gte', value: 10 }, { type: 'time_remaining_lte', value: 32 }] },
+            { id: 'o2', enabled: true, ability: 'recklessness', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+            { id: 'o3', enabled: true, ability: 'racial', conditions: [{ type: 'buff_active', buff: 'death_wish' }] },
+            { id: 'o4', enabled: true, ability: 'trinkets', conditions: [{ type: 'always' }] },
+            { id: 'o5', enabled: true, ability: 'mighty_rage_potion', conditions: [{ type: 'buff_active', buff: 'death_wish' }, { type: 'rage_lte', value: 35 }] },
+            { id: 'o6', enabled: true, ability: 'bloodrage', conditions: [{ type: 'rage_lte', value: 75 }] },
+            { id: 'o7', enabled: true, ability: 'berserker_rage', conditions: [{ type: 'always' }] },
+            { id: 'o8', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'execute_phase' }, { type: 'ap_gte', value: btBreak }, { type: 'rage_gte', value: 30 }] },
+            { id: 'o9', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'execute_phase' }, { type: 'ap_gte', value: 1000 }, { type: 'rage_gte', value: 45 }] },
+            { id: 'o10', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }, { type: 'rage_gte', value: 10 }] },
+            { id: 'o11', enabled: true, ability: 'whirlwind', conditions: [{ type: 'non_execute_phase' }, { type: 'targets_gte', value: 2 }, { type: 'rage_gte', value: 22 }] },
+            { id: 'o12', enabled: true, ability: 'overpower', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_lte', value: 25 }, { type: 'bt_ww_cd' }] },
+            { id: 'o13', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 30 }] },
+            { id: 'o14', enabled: true, ability: 'whirlwind', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 22 }] },
+            { id: 'o15', enabled: true, ability: 'hamstring', conditions: [{ type: 'non_execute_phase' }, { type: 'bt_ww_cd' }, { type: 'rage_gte', value: 55 }] },
+            { id: 'o16', enabled: true, ability: 'cleave', conditions: [{ type: 'non_execute_phase' }, { type: 'targets_gte', value: 2 }, { type: 'rage_gte', value: 40 }] },
+            { id: 'o17', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'non_execute_phase' }, { type: 'rage_gte', value: 40 }] },
+          ];
+        }
+      }
+
+      syncApl(optimal);
+    } catch (err) {
+      console.error('Failed to auto-optimize APL:', err);
+      syncApl(DEFAULT_FURY_APL);
+    }
   };
 
   const addRow = () => syncApl([...apl, { id: String(Date.now()), enabled: true, ability: 'heroic_strike', conditions: [{ type: 'always' }] }]);
@@ -137,9 +241,18 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
 
   const addCondition = (idx: number, type: AplCondition['type']) => {
     if (!type) return;
-    const defaultVal = type.includes('rage') ? 45 : type === 'ap_gte' ? 2000 : type === 'time_remaining_lte' ? 30 : undefined;
+    const defaultVal = type.includes('rage')
+      ? 45
+      : type === 'ap_gte'
+      ? 2000
+      : type === 'time_remaining_lte'
+      ? 30
+      : type === 'targets_gte'
+      ? 2
+      : undefined;
+    const defaultBuff = (type === 'buff_active' || type === 'buff_inactive') ? 'death_wish' : undefined;
     const n = [...apl];
-    n[idx] = { ...n[idx], conditions: [...n[idx].conditions, { type, value: defaultVal }] };
+    n[idx] = { ...n[idx], conditions: [...n[idx].conditions, { type, value: defaultVal, buff: defaultBuff }] };
     syncApl(n);
   };
 
@@ -147,6 +260,14 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
     const n = [...apl];
     const conds = [...n[idx].conditions];
     conds[cIdx] = { ...conds[cIdx], value: val };
+    n[idx] = { ...n[idx], conditions: conds };
+    syncApl(n);
+  };
+
+  const updateCondBuff = (idx: number, cIdx: number, buff: string) => {
+    const n = [...apl];
+    const conds = [...n[idx].conditions];
+    conds[cIdx] = { ...conds[cIdx], buff };
     n[idx] = { ...n[idx], conditions: conds };
     syncApl(n);
   };
@@ -159,149 +280,23 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
 
   return (
     <div className="bg-white text-black p-4 flex flex-col space-y-6 overflow-y-auto h-full">
-      {/* 1. TOP SECTION — Rotation & Cooldowns */}
-      <section className="space-y-3">
-        <div className="border-b border-black pb-1.5 flex items-center justify-between">
-          <h2 className="text-sm font-bold tracking-tight uppercase text-black">Rotation &amp; Cooldown Settings</h2>
-          <span className="text-[11px] text-[#555555]">Configure ability usage rules &amp; rage pooling thresholds</span>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 text-xs">
-          {/* Bloodthirst */}
-          <div className="flex items-start space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useBloodthirst !== false} onChange={(e) => updateField('useBloodthirst', e.target.checked)} className="w-4 h-4 text-[#1861ac] mt-2.5 cursor-pointer" />
-            <img src={getAbilityIconUrl('Bloodthirst', 'large')} alt="Bloodthirst" className={`ww-icon-40 shrink-0 ${rotation.useBloodthirst !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Bloodthirst <span className="font-normal text-[#555555]">(Cast on cooldown)</span></div>
-              <div className="flex items-center flex-wrap gap-1 mt-1 text-[#333333]">
-                <span>In Execute phase:</span>
-                <label className="flex items-center space-x-1 cursor-pointer">
-                  <input type="checkbox" checked={!!rotation.useBtInExecute} onChange={(e) => updateField('useBtInExecute', e.target.checked)} className="w-3.5 h-3.5 cursor-pointer" />
-                  <span>cast if AP &ge;</span>
-                </label>
-                <input type="number" className="ww-inline-input" value={rotation.executeBtApThreshold ?? 2000} onChange={(e) => updateField('executeBtApThreshold', +e.target.value)} />
-                <span>or Rage &ge;</span>
-                <input type="number" className="ww-inline-input" value={rotation.executeRagePoolThreshold ?? 45} onChange={(e) => updateField('executeRagePoolThreshold', +e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* Whirlwind */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useWhirlwind !== false} onChange={(e) => updateField('useWhirlwind', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Whirlwind', 'large')} alt="Whirlwind" className={`ww-icon-40 shrink-0 ${rotation.useWhirlwind !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Whirlwind</div>
-              <div className="text-[#555555]">Cast on cooldown (fill between Bloodthirst GCDs)</div>
-            </div>
-          </div>
-
-          {/* Heroic Strike */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useHeroicStrike !== false} onChange={(e) => updateField('useHeroicStrike', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Heroic Strike', 'large')} alt="Heroic Strike" className={`ww-icon-40 shrink-0 ${rotation.useHeroicStrike !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Heroic Strike</div>
-              <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Queue over</span>
-                <input type="number" className="ww-inline-input" value={rotation.hsRageThreshold ?? rotation.heroicStrikeRageThreshold ?? 45} onChange={(e) => { const v = +e.target.value; onChange({ ...rotation, hsRageThreshold: v, heroicStrikeRageThreshold: v }); }} />
-                <span>rage (off-GCD rage dump)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Execute */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.executePhase !== false && rotation.useExecute !== false} onChange={(e) => onChange({ ...rotation, executePhase: e.target.checked, useExecute: e.target.checked })} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Execute', 'large')} alt="Execute" className={`ww-icon-40 shrink-0 ${(rotation.executePhase !== false && rotation.useExecute !== false) ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Execute</div>
-              <div className="text-[#555555]">Cast in Execute phase (&lt;20% boss HP)</div>
-            </div>
-          </div>
-
-          {/* Overpower */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={!!rotation.useOverpower} onChange={(e) => updateField('useOverpower', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Overpower', 'large')} alt="Overpower" className={`ww-icon-40 shrink-0 ${rotation.useOverpower ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Overpower</div>
-              <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Weave in Battle Stance &le;</span>
-                <input type="number" className="ww-inline-input" value={rotation.overpowerMaxRage ?? rotation.overpowerRageThreshold ?? 35} onChange={(e) => { const v = +e.target.value; onChange({ ...rotation, overpowerMaxRage: v, overpowerRageThreshold: v }); }} />
-                <span>rage</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Hamstring */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={!!rotation.useHamstring} onChange={(e) => updateField('useHamstring', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Hamstring', 'large')} alt="Hamstring" className={`ww-icon-40 shrink-0 ${rotation.useHamstring ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Hamstring</div>
-              <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Windfury / proc fishing &gt;</span>
-                <input type="number" className="ww-inline-input" value={rotation.hamstringRageThreshold ?? 70} onChange={(e) => updateField('hamstringRageThreshold', +e.target.value)} />
-                <span>rage</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Death Wish */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useDeathWish !== false} onChange={(e) => updateField('useDeathWish', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Death Wish', 'large')} alt="Death Wish" className={`ww-icon-40 shrink-0 ${rotation.useDeathWish !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Death Wish</div>
-              <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Activate in last</span>
-                <input type="number" className="ww-inline-input" value={rotation.deathWishTiming ?? 30} onChange={(e) => updateField('deathWishTiming', +e.target.value)} />
-                <span>sec (+20% damage)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Recklessness */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useRecklessness !== false} onChange={(e) => updateField('useRecklessness', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl('Recklessness', 'large')} alt="Recklessness" className={`ww-icon-40 shrink-0 ${rotation.useRecklessness !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-black">Recklessness</div>
-              <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Activate in last</span>
-                <input type="number" className="ww-inline-input" value={rotation.recklessnessTiming ?? 15} onChange={(e) => updateField('recklessnessTiming', +e.target.value)} />
-                <span>sec (+100% crit)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bloodrage & Mighty Rage Potion */}
-          <div className="flex items-center space-x-4 p-2 bg-white border border-[#dddddd] rounded">
-            <div className="flex items-center space-x-2">
-              <input type="checkbox" checked={rotation.useBloodrage !== false} onChange={(e) => updateField('useBloodrage', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-              <img src={getAbilityIconUrl('Bloodrage', 'large')} alt="Bloodrage" className={`ww-icon-40 shrink-0 ${rotation.useBloodrage !== false ? '' : 'ww-grayscale'}`} />
-              <span className="font-semibold text-black">Bloodrage</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input type="checkbox" checked={!!rotation.useMightyRagePotion} onChange={(e) => updateField('useMightyRagePotion', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-              <img src={getAbilityIconUrl('Mighty Rage Potion', 'large')} alt="Mighty Rage Potion" className={`ww-icon-40 shrink-0 ${rotation.useMightyRagePotion ? '' : 'ww-grayscale'}`} />
-              <span className="font-semibold text-black">Mighty Rage Pot</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. BOTTOM SECTION — APL (Action Priority List) */}
+      {/* APL (Action Priority List) */}
       <section className="space-y-3">
         <div className="border-b border-black pb-1.5 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-bold tracking-tight uppercase text-black">APL — Action Priority List</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleAutoOptimizeApl}
+              className="px-2.5 py-1 text-xs font-bold rounded bg-[#1861ac] hover:bg-[#144e8c] text-white shadow-sm flex items-center gap-1 transition-colors"
+              title="Automatically generate mathematically optimal APL prioritizing highest DPR/DPE abilities for your current gear and talents"
+            >
+              <span>⚡</span> Auto-Optimize APL (DPR/DPE)
+            </button>
             <button onClick={() => syncApl(DEFAULT_FURY_APL)} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">Default Fury (DW)</button>
             <button onClick={() => syncApl(DEFAULT_ARMS_APL)} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">2H Arms / Fury</button>
-            <button onClick={addRow} className="px-2.5 py-1 text-xs font-semibold rounded bg-[#1861ac] hover:bg-[#144e8c] text-white shadow-sm">+ Add Action Row</button>
+            <button onClick={addRow} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">+ Add Action Row</button>
           </div>
         </div>
 
@@ -334,8 +329,22 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
                         type="number"
                         value={cond.value ?? 0}
                         onChange={(e) => updateCondValue(idx, cIdx, +e.target.value)}
-                        className="ww-inline-input w-10 text-[11px] font-mono px-0.5"
+                        className="ww-inline-input w-12 text-[11px] font-mono px-0.5"
                       />
+                    )}
+                    {['buff_active', 'buff_inactive'].includes(cond.type) && (
+                      <select
+                        value={cond.buff || 'death_wish'}
+                        onChange={(e) => updateCondBuff(idx, cIdx, e.target.value)}
+                        className="text-[11px] font-semibold bg-white border border-[#cccccc] rounded px-1 py-0.5 text-[#1861ac] cursor-pointer"
+                      >
+                        {BUFF_CHOICES.map((b) => (
+                          <option key={b.value} value={b.value}>{b.label}</option>
+                        ))}
+                        {cond.buff && !BUFF_CHOICES.some((b) => b.value === cond.buff) && (
+                          <option value={cond.buff}>{cond.buff}</option>
+                        )}
+                      </select>
                     )}
                     <button onClick={() => removeCondition(idx, cIdx)} className="text-[#888888] hover:text-[#c00] font-bold text-xs ml-0.5" title="Remove condition">×</button>
                   </span>
@@ -353,7 +362,10 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange
                   <option value="non_execute_phase">&ge;20% HP</option>
                   <option value="ap_gte">AP &ge;</option>
                   <option value="time_remaining_lte">Time &le;</option>
+                  <option value="targets_gte">Targets &ge;</option>
                   <option value="bt_ww_cd">BT/WW on CD</option>
+                  <option value="buff_active">Buff Active</option>
+                  <option value="buff_inactive">Buff Inactive</option>
                 </select>
               </div>
 

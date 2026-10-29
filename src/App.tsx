@@ -19,7 +19,7 @@ import { SlotTable } from './components/SlotTable';
 import { StatsSidebar } from './components/StatsSidebar';
 import { TalentTree } from './components/TalentTree';
 import { BuffsPanel, WOW_FOREVER_RACES } from './components/BuffsPanel';
-import { RotationPanel } from './components/RotationPanel';
+import { RotationPanel, DEFAULT_FURY_APL } from './components/RotationPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { CustomItemModal } from './components/CustomItemModal';
 import { SpellEfficiencyPanel } from './components/SpellEfficiencyPanel';
@@ -56,12 +56,35 @@ import {
   Zap,
 } from 'lucide-react';
 
+interface SavedSimState {
+  currentPresetId?: string;
+  gearIds?: Partial<Record<EquipmentSlot, string | null>>;
+  enchantIds?: Partial<Record<EquipmentSlot, string | null>>;
+  talents?: TalentConfig;
+  buffs?: BuffConfig;
+  rotation?: RotationConfig;
+  encounter?: EncounterConfig;
+  race?: Race;
+  selectedSlot?: EquipmentSlot;
+}
+
+const getSavedSimState = (): SavedSimState | null => {
+  try {
+    const raw = localStorage.getItem('wow_forever_sim_state_v1');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 export const App: React.FC = () => {
+  const savedState = useMemo(() => getSavedSimState(), []);
+
   // Navigation State: 'gear' | 'settings' | 'efficiency' | 'results'
   const [activeTab, setActiveTab] = useState<'gear' | 'settings' | 'efficiency' | 'results'>('gear');
 
   // Currently selected equipment slot in Paper-Doll
-  const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot>('mainhand');
+  const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot>(() => savedState?.selectedSlot || 'mainhand');
 
   // Custom Items saved to localStorage
   const [customItems, setCustomItems] = useState<ItemStats[]>(() => {
@@ -120,10 +143,19 @@ export const App: React.FC = () => {
   const defaultPreset = allPresets[0] || PRESETS[0];
 
   // Character Configuration State
-  const [currentPresetId, setCurrentPresetId] = useState<string>(defaultPreset.id);
+  const [currentPresetId, setCurrentPresetId] = useState<string>(() => savedState?.currentPresetId || defaultPreset.id);
 
   // Equipped Items Map
   const [gear, setGear] = useState<Partial<Record<EquipmentSlot, ItemStats | null>>>(() => {
+    if (savedState?.gearIds && Object.keys(savedState.gearIds).length > 0) {
+      const restored: Partial<Record<EquipmentSlot, ItemStats | null>> = {};
+      for (const slotKey in savedState.gearIds) {
+        const slot = slotKey as EquipmentSlot;
+        const itemId = savedState.gearIds[slot];
+        restored[slot] = itemId ? (customItems.find((i) => i.id === itemId) || getItemById(itemId) || null) : null;
+      }
+      return restored;
+    }
     const initialGear: Partial<Record<EquipmentSlot, ItemStats | null>> = {};
     for (const slotKey in defaultPreset.gear) {
       const slot = slotKey as EquipmentSlot;
@@ -142,6 +174,15 @@ export const App: React.FC = () => {
 
   // Equipped Enchants Map
   const [enchants, setEnchants] = useState<Partial<Record<EquipmentSlot, EnchantInfo | null>>>(() => {
+    if (savedState?.enchantIds && Object.keys(savedState.enchantIds).length > 0) {
+      const restored: Partial<Record<EquipmentSlot, EnchantInfo | null>> = {};
+      for (const slotKey in savedState.enchantIds) {
+        const slot = slotKey as EquipmentSlot;
+        const enchantId = savedState.enchantIds[slot];
+        restored[slot] = enchantId ? (getEnchantById(enchantId) || null) : null;
+      }
+      return restored;
+    }
     const initialEnchants: Partial<Record<EquipmentSlot, EnchantInfo | null>> = {};
     for (const slotKey in defaultPreset.enchants) {
       const slot = slotKey as EquipmentSlot;
@@ -159,10 +200,13 @@ export const App: React.FC = () => {
   });
 
   // Talents
-  const [talents, setTalents] = useState<TalentConfig>(defaultPreset.talents || DEFAULT_TALENTS_17_34);
+  const [talents, setTalents] = useState<TalentConfig>(() => savedState?.talents || defaultPreset.talents || DEFAULT_TALENTS_17_34);
 
   // Buffs (Filtered to ensure no world buffs are active by default in raids)
   const [buffs, setBuffs] = useState<BuffConfig>(() => {
+    if (savedState?.buffs) {
+      return savedState.buffs;
+    }
     const cleanBuffs = { ...(defaultPreset.buffs || DEFAULT_BUFF_CONFIG) };
     // Disable world buffs for raid ruleset
     cleanBuffs.rallyingCryOfDragonslayer = false;
@@ -177,24 +221,39 @@ export const App: React.FC = () => {
   });
 
   // Rotation
-  const [rotation, setRotation] = useState<RotationConfig>({
-    hsRageThreshold: 45,
-    heroicStrikeRageThreshold: 45,
-    overpowerMaxRage: 35,
-    overpowerRageThreshold: 35,
-    hamstringRageThreshold: 70,
-    hamstringSpamRageThreshold: 70,
-    executePhase: true,
-    executeBtApThreshold: 2000,
-    useDeathWish: true,
-    useRecklessness: true,
-    useBloodrage: true,
-    useMightyRagePotion: true,
-    deathWishTiming: 0,
+  const [rotation, setRotation] = useState<RotationConfig>(() => {
+    const base: RotationConfig = savedState?.rotation ? { ...savedState.rotation } : {
+      hsRageThreshold: 45,
+      heroicStrikeRageThreshold: 45,
+      overpowerMaxRage: 35,
+      overpowerRageThreshold: 35,
+      hamstringRageThreshold: 70,
+      hamstringSpamRageThreshold: 70,
+      executePhase: true,
+      executeBtApThreshold: 2000,
+      useHeroicStrike: true,
+      useBloodthirst: true,
+      useWhirlwind: true,
+      useExecute: true,
+      useOverpower: true,
+      useDeathWish: true,
+      useRecklessness: true,
+      useBloodrage: true,
+      useMightyRagePotion: true,
+      deathWishTiming: 0,
+      apl: DEFAULT_FURY_APL,
+    };
+    if (!base.apl || base.apl.length === 0) {
+      base.apl = DEFAULT_FURY_APL;
+    }
+    if (base.useHeroicStrike === undefined) {
+      base.useHeroicStrike = true;
+    }
+    return base;
   });
 
   // Encounter
-  const [encounter, setEncounter] = useState<EncounterConfig>({
+  const [encounter, setEncounter] = useState<EncounterConfig>(() => savedState?.encounter || {
     bossLevel: 63,
     targetLevel: 63,
     bossArmor: 3731,
@@ -211,7 +270,7 @@ export const App: React.FC = () => {
   });
 
   // Race
-  const [race, setRace] = useState<Race>((defaultPreset.race as Race) || 'orc');
+  const [race, setRace] = useState<Race>(() => savedState?.race || (defaultPreset.race as Race) || 'orc');
 
   // Simulation Results & Status
   const [simResult, setSimResult] = useState<SimResult | null>(null);
@@ -260,6 +319,37 @@ export const App: React.FC = () => {
   const characterSheet = useMemo(() => {
     return calculateCharacterSheet(currentSimConfig);
   }, [currentSimConfig]);
+
+  // Auto-persist all user settings & APL to localStorage
+  useEffect(() => {
+    try {
+      const gearIds: Partial<Record<EquipmentSlot, string | null>> = {};
+      for (const slotKey in gear) {
+        const item = gear[slotKey as EquipmentSlot];
+        gearIds[slotKey as EquipmentSlot] = item ? item.id : null;
+      }
+      const enchantIds: Partial<Record<EquipmentSlot, string | null>> = {};
+      for (const slotKey in enchants) {
+        const ench = enchants[slotKey as EquipmentSlot];
+        enchantIds[slotKey as EquipmentSlot] = ench ? ench.id : null;
+      }
+
+      const stateToSave = {
+        currentPresetId,
+        gearIds,
+        enchantIds,
+        talents,
+        buffs,
+        rotation,
+        encounter,
+        race,
+        selectedSlot,
+      };
+      localStorage.setItem('wow_forever_sim_state_v1', JSON.stringify(stateToSave));
+    } catch (e) {
+      console.warn('Failed to save sim state to localStorage:', e);
+    }
+  }, [currentPresetId, gear, enchants, talents, buffs, rotation, encounter, race, selectedSlot]);
 
   // Load Preset
   const handleSelectPreset = (presetId: string) => {
@@ -506,7 +596,7 @@ export const App: React.FC = () => {
   };
 
   // Apply Enchant
-  const handleApplyEnchant = (slot: EquipmentSlot, enchant: EnchantInfo) => {
+  const handleApplyEnchant = (slot: EquipmentSlot, enchant: EnchantInfo | null) => {
     setEnchants((prev) => ({
       ...prev,
       [slot]: enchant,
@@ -678,11 +768,11 @@ export const App: React.FC = () => {
       </div>
 
       {/* Column 3: Main Working Area */}
-      <main className="flex-1 h-full overflow-y-auto bg-white p-6">
+      <main className="flex-1 h-full overflow-hidden bg-white">
         {/* Tab 1: Gear (Index.razor) */}
         {activeTab === 'gear' && (
-          <div className="flex h-full gap-3">
-            <div className="w-[195px] shrink-0 h-full">
+          <div className="h-full flex overflow-hidden">
+            <div className="w-[230px] shrink-0 h-full border-r border-[#dddddd] bg-white overflow-y-auto">
               <PaperDoll
                 gear={gear}
                 enchants={enchants}
@@ -697,7 +787,7 @@ export const App: React.FC = () => {
               />
             </div>
 
-            <div className="flex-1 min-w-0 h-full">
+            <div className="flex-1 h-full min-w-0 overflow-hidden p-3">
               <SlotTable
                 selectedSlot={selectedSlot}
                 equippedItem={gear[selectedSlot] || null}
@@ -720,7 +810,7 @@ export const App: React.FC = () => {
 
         {/* Tab 2: Settings (Settings.razor) */}
         {activeTab === 'settings' && (
-          <div className="space-y-8 max-w-6xl">
+          <div className="h-full overflow-y-auto p-6 space-y-8 max-w-6xl">
             {/* 1. Simulation & Encounter Settings Bar */}
             <div className="bg-[#eeeeee] p-4 border border-[#d5d5d5] rounded">
               <div className="text-xs font-bold uppercase tracking-wider text-black mb-3 pb-1 border-b border-[#cccccc]">
@@ -872,18 +962,21 @@ export const App: React.FC = () => {
 
         {/* Tab: Efficiency */}
         {activeTab === 'efficiency' && (
-          <SpellEfficiencyPanel
-            rotation={rotation}
-            characterSheet={characterSheet}
-            simConfig={currentSimConfig}
-            race={race}
-            talents={talents}
-          />
+          <div className="h-full overflow-y-auto p-6">
+            <SpellEfficiencyPanel
+              rotation={rotation}
+              characterSheet={characterSheet}
+              simConfig={currentSimConfig}
+              race={race}
+              talents={talents}
+              onRotationChange={setRotation}
+            />
+          </div>
         )}
 
         {/* Tab 3: Results (Results.razor) */}
         {activeTab === 'results' && (
-          <div className="space-y-6">
+          <div className="h-full overflow-y-auto p-6 space-y-6">
             {/* Top Bar with Run Simulation and Calculate Stat Weights */}
             <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-[#eeeeee] border border-[#d5d5d5] rounded">
               <div className="flex items-center gap-3">

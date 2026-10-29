@@ -38,6 +38,90 @@ impl IterationResult {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum GcdAction {
+    Overpower,
+    Execute,
+    Bloodthirst,
+    MortalStrike,
+    Whirlwind,
+    Hamstring,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn eval_condition(
+    cond: &AplCondition,
+    current_time: f64,
+    fight_duration: f64,
+    rage: f64,
+    dynamic_ap: f64,
+    in_execute: bool,
+    bt_cd: f64,
+    ww_cd: f64,
+    targets: u32,
+    death_wish_until: f64,
+    recklessness_until: f64,
+    bloodrage_until: f64,
+    mighty_rage_until: f64,
+    blood_fury_until: f64,
+    berserking_until: f64,
+    elunes_light_until: f64,
+    eureka_until: f64,
+    eureka_charges: u8,
+    flurry_charges: u8,
+    crusader_mh_until: f64,
+    crusader_oh_until: f64,
+) -> bool {
+    let t = cond.condition_type.to_lowercase();
+    match t.as_str() {
+        "always" => true,
+        "execute_phase" => in_execute,
+        "non_execute_phase" => !in_execute,
+        "rage_above" | "rage_gte" => rage >= cond.value.unwrap_or(0.0),
+        "rage_below" | "rage_lte" => rage <= cond.value.unwrap_or(100.0),
+        "ap_above" | "ap_gte" => dynamic_ap >= cond.value.unwrap_or(0.0),
+        "time_remaining_below" | "time_remaining_lte" => {
+            (fight_duration - current_time) <= cond.value.unwrap_or(0.0)
+        }
+        "bt_ww_cd" => bt_cd > 1.0 && ww_cd > 1.0,
+        "targets_gte" => targets >= cond.value.unwrap_or(1.0) as u32,
+        "buff_active" | "buff" | "target_buff" => {
+            let b = cond.buff.as_deref().or(cond.target_buff.as_deref()).unwrap_or("").to_lowercase();
+            match b.as_str() {
+                "death_wish" | "deathwish" => death_wish_until > current_time,
+                "recklessness" => recklessness_until > current_time,
+                "bloodrage" => bloodrage_until > current_time,
+                "mighty_rage" | "mighty_rage_potion" => mighty_rage_until > current_time,
+                "blood_fury" | "bloodfury" => blood_fury_until > current_time,
+                "berserking" => berserking_until > current_time,
+                "elunes_light" | "elune" => elunes_light_until > current_time,
+                "eureka" => eureka_until > current_time && eureka_charges > 0,
+                "flurry" => flurry_charges > 0,
+                "crusader" => crusader_mh_until > current_time || crusader_oh_until > current_time,
+                _ => true,
+            }
+        }
+        "buff_inactive" => {
+            let b = cond.buff.as_deref().or(cond.target_buff.as_deref()).unwrap_or("").to_lowercase();
+            let is_act = match b.as_str() {
+                "death_wish" | "deathwish" => death_wish_until > current_time,
+                "recklessness" => recklessness_until > current_time,
+                "bloodrage" => bloodrage_until > current_time,
+                "mighty_rage" | "mighty_rage_potion" => mighty_rage_until > current_time,
+                "blood_fury" | "bloodfury" => blood_fury_until > current_time,
+                "berserking" => berserking_until > current_time,
+                "elunes_light" | "elune" => elunes_light_until > current_time,
+                "eureka" => eureka_until > current_time && eureka_charges > 0,
+                "flurry" => flurry_charges > 0,
+                "crusader" => crusader_mh_until > current_time || crusader_oh_until > current_time,
+                _ => false,
+            };
+            !is_act
+        }
+        _ => true,
+    }
+}
+
 pub struct SimulationRun {
     config: SimConfig,
     sheet: CharacterSheetSummary,
@@ -182,12 +266,13 @@ impl SimulationRun {
         let mut death_wish_active_time = 0.0;
 
         let mut overpower_available_until = 0.0;
-        let mut hs_queued = false;
 
-        // Deep Wounds Bleed Pool
-        let mut deep_wounds_pool = 0.0;
+        // Deep Wounds Bleed
+        let mut deep_wounds_tick_dmg = 0.0;
         let mut deep_wounds_ticks_left = 0u8;
         let mut deep_wounds_next_tick = 0.0;
+
+        let mut ms_cd = 0.0;
 
         // Passive Anger Management timer (1 rage every 3s)
         let mut anger_management_timer = 3.0;
@@ -205,6 +290,7 @@ impl SimulationRun {
             if bt_cd > 0.0 { bt_cd = (bt_cd - dt).max(0.0); }
             if ww_cd > 0.0 { ww_cd = (ww_cd - dt).max(0.0); }
             if op_cd > 0.0 { op_cd = (op_cd - dt).max(0.0); }
+            if ms_cd > 0.0 { ms_cd = (ms_cd - dt).max(0.0); }
             if bloodrage_cd > 0.0 { bloodrage_cd = (bloodrage_cd - dt).max(0.0); }
             if berserker_rage_cd > 0.0 { berserker_rage_cd = (berserker_rage_cd - dt).max(0.0); }
             if dw_cd > 0.0 { dw_cd = (dw_cd - dt).max(0.0); }
@@ -245,12 +331,12 @@ impl SimulationRun {
 
             // Deep wounds tick (ticks every 3s, exactly 4 ticks total)
             if deep_wounds_ticks_left > 0 && current_time >= deep_wounds_next_tick {
-                let tick_dmg = deep_wounds_pool / (deep_wounds_ticks_left as f64);
-                deep_wounds_pool -= tick_dmg;
+                let tick_dmg = deep_wounds_tick_dmg;
                 deep_wounds_ticks_left -= 1;
                 deep_wounds_next_tick = current_time + 3.0;
                 total_damage += tick_dmg;
                 let entry = ability_stats.entry("Deep Wounds".to_string()).or_default();
+                entry.casts += 1;
                 entry.hits += 1;
                 entry.total_damage += tick_dmg;
             }
@@ -328,121 +414,585 @@ impl SimulationRun {
 
             // Active Abilities & Cooldowns
             let in_execute = current_time >= execute_start_time;
+            let has_apl = self.config.rotation.apl.as_ref().map_or(false, |a| !a.is_empty());
 
-            // Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
-            if self.config.rotation.use_racial && racial_cd <= 0.0 {
-                match race_lower.as_str() {
-                    "orc" => {
-                        racial_cd = 120.0;
-                        blood_fury_until = current_time + 15.0;
+            // Off-GCD Abilities
+            if has_apl {
+                if let Some(ref apl) = self.config.rotation.apl {
+                    for row in apl {
+                        if !row.enabled {
+                            continue;
+                        }
+                        let ab = row.ability.to_lowercase();
+                        match ab.as_str() {
+                            "racial" | "blood_fury" | "berserking" | "elunes_light" | "eureka" => {
+                                if racial_cd <= 0.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        match race_lower.as_str() {
+                                            "orc" => {
+                                                racial_cd = 120.0;
+                                                blood_fury_until = current_time + 15.0;
+                                            }
+                                            "troll" => {
+                                                racial_cd = 180.0;
+                                                berserking_until = current_time + 15.0;
+                                            }
+                                            "night_elf" | "nightelf" => {
+                                                racial_cd = 180.0;
+                                                elunes_light_until = current_time + 15.0;
+                                            }
+                                            "gnome" => {
+                                                racial_cd = 180.0;
+                                                eureka_until = current_time + 15.0;
+                                                eureka_charges = 3;
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            }
+                            "mighty_rage_potion" | "mighty_rage" => {
+                                if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && current_time >= 0.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        pot_cd = 120.0;
+                                        mighty_rage_until = current_time + 20.0;
+                                        let gained_rage = rng.gen_range(45.0..=75.0);
+                                        let old_rage = rage;
+                                        rage = (rage + gained_rage).min(max_rage);
+                                        total_rage_gained += rage - old_rage;
+                                    }
+                                }
+                            }
+                            "death_wish" => {
+                                if self.config.talents.death_wish > 0 && dw_cd <= 0.0 && rage >= 10.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        rage -= 10.0;
+                                        dw_cd = 180.0;
+                                        death_wish_until = current_time + 30.0;
+                                        if self.config.talents.gore_drinker > 0 {
+                                            gore_drinker_charges = 3;
+                                        }
+                                    }
+                                }
+                            }
+                            "bloodrage" => {
+                                if bloodrage_cd <= 0.0 && rage < 80.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        bloodrage_cd = 60.0;
+                                        bloodrage_until = current_time + 10.0;
+                                        bloodrage_next_tick = current_time + 1.0;
+                                        let old_rage = rage;
+                                        rage = (rage + 10.0).min(max_rage);
+                                        total_rage_gained += rage - old_rage;
+                                        if self.config.talents.gore_drinker > 0 {
+                                            gore_drinker_charges = 3;
+                                        }
+                                    }
+                                }
+                            }
+                            "berserker_rage" => {
+                                if berserker_rage_cd <= 0.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        berserker_rage_cd = 30.0;
+                                        let br_rage = match self.config.talents.improved_berserker_rage {
+                                            1 => 5.0,
+                                            2..=u8::MAX => 10.0,
+                                            _ => 0.0,
+                                        };
+                                        if br_rage > 0.0 {
+                                            let old_rage = rage;
+                                            rage = (rage + br_rage).min(max_rage);
+                                            total_rage_gained += rage - old_rage;
+                                        }
+                                        if self.config.talents.gore_drinker > 0 {
+                                            gore_drinker_charges = 3;
+                                        }
+                                    }
+                                }
+                            }
+                            "recklessness" => {
+                                if reck_cd <= 0.0 && current_time >= 0.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        reck_cd = 1800.0;
+                                        recklessness_until = current_time + 15.0;
+                                    }
+                                }
+                            }
+                            "goblin_sapper" | "sapper" => {
+                                if self.config.buffs.goblin_sapper && !sapper_used && current_time >= 1.0 {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        sapper_used = true;
+                                        let base_dmg = rng.gen_range(450.0..=750.0);
+                                        let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                                        let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                                        let entry = ability_stats.entry("Goblin Sapper Charge".to_string()).or_default();
+                                        entry.casts += 1;
+                                        if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                                        entry.total_damage += final_dmg;
+                                        total_damage += final_dmg;
+                                    }
+                                }
+                            }
+                            "dense_dynamite" | "dynamite" => {
+                                if self.config.buffs.dense_dynamite && current_time >= dynamite_cd {
+                                    let all_ok = row.conditions.iter().all(|c| {
+                                        eval_condition(
+                                            c,
+                                            current_time,
+                                            fight_duration,
+                                            rage,
+                                            dynamic_ap,
+                                            in_execute,
+                                            bt_cd,
+                                            ww_cd,
+                                            self.config.encounter.targets,
+                                            death_wish_until,
+                                            recklessness_until,
+                                            bloodrage_until,
+                                            mighty_rage_until,
+                                            blood_fury_until,
+                                            berserking_until,
+                                            elunes_light_until,
+                                            eureka_until,
+                                            eureka_charges,
+                                            flurry_charges,
+                                            crusader_mh_until,
+                                            crusader_oh_until,
+                                        )
+                                    });
+                                    if all_ok {
+                                        dynamite_cd = current_time + 60.0;
+                                        let base_dmg = rng.gen_range(340.0..=460.0);
+                                        let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                                        let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                                        let entry = ability_stats.entry("Dense Dynamite".to_string()).or_default();
+                                        entry.casts += 1;
+                                        if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                                        entry.total_damage += final_dmg;
+                                        total_damage += final_dmg;
+                                    }
+                                }
+                            }
+                            "trinkets" | "trinket" => {
+                                if trinket_cd <= 0.0 {
+                                    let has_trinket = self.config.items.iter().any(|i| i.on_use_ap > 0.0 || i.on_use_haste > 0.0 || i.on_use_armor_pen > 0.0);
+                                    if has_trinket {
+                                        let all_ok = row.conditions.iter().all(|c| {
+                                            eval_condition(
+                                                c,
+                                                current_time,
+                                                fight_duration,
+                                                rage,
+                                                dynamic_ap,
+                                                in_execute,
+                                                bt_cd,
+                                                ww_cd,
+                                                self.config.encounter.targets,
+                                                death_wish_until,
+                                                recklessness_until,
+                                                bloodrage_until,
+                                                mighty_rage_until,
+                                                blood_fury_until,
+                                                berserking_until,
+                                                elunes_light_until,
+                                                eureka_until,
+                                                eureka_charges,
+                                                flurry_charges,
+                                                crusader_mh_until,
+                                                crusader_oh_until,
+                                            )
+                                        });
+                                        if all_ok {
+                                            trinket_cd = 120.0;
+                                            let duration = self.config.items.iter().map(|i| i.on_use_duration).fold(20.0, f64::max);
+                                            trinket_until = current_time + duration;
+                                        }
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
                     }
-                    "troll" => {
-                        racial_cd = 180.0;
-                        berserking_until = current_time + 15.0;
-                    }
-                    "night_elf" | "nightelf" => {
-                        racial_cd = 180.0;
-                        elunes_light_until = current_time + 15.0;
-                    }
-                    "gnome" => {
-                        racial_cd = 180.0;
-                        eureka_until = current_time + 15.0;
-                        eureka_charges = 3;
-                    }
-                    _ => {}
                 }
-            }
-
-            // Mighty Rage Potion: can be used on pull or with Death Wish (+45-75 rage & +60 STR = 120 AP for 20s)
-            if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && current_time >= 0.0 {
-                pot_cd = 120.0;
-                mighty_rage_until = current_time + 20.0;
-                let gained_rage = rng.gen_range(45.0..=75.0);
-                let old_rage = rage;
-                rage = (rage + gained_rage).min(max_rage);
-                total_rage_gained += rage - old_rage;
-            }
-
-            // Death Wish
-            if self.config.rotation.use_death_wish && self.config.talents.death_wish > 0 && dw_cd <= 0.0 && rage >= 10.0 {
-                rage -= 10.0;
-                dw_cd = 180.0;
-                death_wish_until = current_time + 30.0;
-                if self.config.talents.gore_drinker > 0 {
-                    gore_drinker_charges = 3;
+            } else {
+                // Legacy Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
+                if self.config.rotation.use_racial && racial_cd <= 0.0 {
+                    match race_lower.as_str() {
+                        "orc" => {
+                            racial_cd = 120.0;
+                            blood_fury_until = current_time + 15.0;
+                        }
+                        "troll" => {
+                            racial_cd = 180.0;
+                            berserking_until = current_time + 15.0;
+                        }
+                        "night_elf" | "nightelf" => {
+                            racial_cd = 180.0;
+                            elunes_light_until = current_time + 15.0;
+                        }
+                        "gnome" => {
+                            racial_cd = 180.0;
+                            eureka_until = current_time + 15.0;
+                            eureka_charges = 3;
+                        }
+                        _ => {}
+                    }
                 }
-            }
 
-            // Bloodrage
-            if self.config.rotation.use_bloodrage && bloodrage_cd <= 0.0 && rage < 80.0 {
-                bloodrage_cd = 60.0;
-                bloodrage_until = current_time + 10.0;
-                bloodrage_next_tick = current_time + 1.0;
-                let old_rage = rage;
-                rage = (rage + 10.0).min(max_rage);
-                total_rage_gained += rage - old_rage;
-                if self.config.talents.gore_drinker > 0 {
-                    gore_drinker_charges = 3;
-                }
-            }
-
-            // Berserker Rage
-            if self.config.rotation.use_berserker_rage && berserker_rage_cd <= 0.0 {
-                berserker_rage_cd = 30.0;
-                let br_rage = match self.config.talents.improved_berserker_rage {
-                    1 => 5.0,
-                    2..=u8::MAX => 10.0,
-                    _ => 0.0,
-                };
-                if br_rage > 0.0 {
+                // Mighty Rage Potion: can be used on pull or with Death Wish (+45-75 rage & +60 STR = 120 AP for 20s)
+                if self.config.buffs.mighty_rage_potion && pot_cd <= 0.0 && current_time >= 0.0 {
+                    pot_cd = 120.0;
+                    mighty_rage_until = current_time + 20.0;
+                    let gained_rage = rng.gen_range(45.0..=75.0);
                     let old_rage = rage;
-                    rage = (rage + br_rage).min(max_rage);
+                    rage = (rage + gained_rage).min(max_rage);
                     total_rage_gained += rage - old_rage;
                 }
-                if self.config.talents.gore_drinker > 0 {
-                    gore_drinker_charges = 3;
+
+                // Death Wish
+                if self.config.rotation.use_death_wish && self.config.talents.death_wish > 0 && dw_cd <= 0.0 && rage >= 10.0 {
+                    rage -= 10.0;
+                    dw_cd = 180.0;
+                    death_wish_until = current_time + 30.0;
+                    if self.config.talents.gore_drinker > 0 {
+                        gore_drinker_charges = 3;
+                    }
+                }
+
+                // Bloodrage
+                if self.config.rotation.use_bloodrage && bloodrage_cd <= 0.0 && rage < 80.0 {
+                    bloodrage_cd = 60.0;
+                    bloodrage_until = current_time + 10.0;
+                    bloodrage_next_tick = current_time + 1.0;
+                    let old_rage = rage;
+                    rage = (rage + 10.0).min(max_rage);
+                    total_rage_gained += rage - old_rage;
+                    if self.config.talents.gore_drinker > 0 {
+                        gore_drinker_charges = 3;
+                    }
+                }
+
+                // Berserker Rage
+                if self.config.rotation.use_berserker_rage && berserker_rage_cd <= 0.0 {
+                    berserker_rage_cd = 30.0;
+                    let br_rage = match self.config.talents.improved_berserker_rage {
+                        1 => 5.0,
+                        2..=u8::MAX => 10.0,
+                        _ => 0.0,
+                    };
+                    if br_rage > 0.0 {
+                        let old_rage = rage;
+                        rage = (rage + br_rage).min(max_rage);
+                        total_rage_gained += rage - old_rage;
+                    }
+                    if self.config.talents.gore_drinker > 0 {
+                        gore_drinker_charges = 3;
+                    }
+                }
+
+                // Recklessness: can be used on pull or with Death Wish
+                if self.config.rotation.use_recklessness && reck_cd <= 0.0 && current_time >= 0.0 {
+                    reck_cd = 1800.0;
+                    recklessness_until = current_time + 15.0;
+                }
+
+                // Goblin Sapper Charge: fires once per fight at t = 1.0s (450-750 Fire damage, ~10% spell crit for 1.5x)
+                if self.config.buffs.goblin_sapper && !sapper_used && current_time >= 1.0 {
+                    sapper_used = true;
+                    let base_dmg = rng.gen_range(450.0..=750.0);
+                    let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                    let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                    let entry = ability_stats.entry("Goblin Sapper Charge".to_string()).or_default();
+                    entry.casts += 1;
+                    if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                    entry.total_damage += final_dmg;
+                    total_damage += final_dmg;
+                }
+
+                // Dense Dynamite: fires on a 60s cooldown starting at t = 5.0s (340-460 Fire damage, ~10% spell crit for 1.5x)
+                if self.config.buffs.dense_dynamite && current_time >= dynamite_cd {
+                    dynamite_cd = current_time + 60.0;
+                    let base_dmg = rng.gen_range(340.0..=460.0);
+                    let is_crit = rng.gen_range(0.0..100.0) < 10.0;
+                    let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
+                    let entry = ability_stats.entry("Dense Dynamite".to_string()).or_default();
+                    entry.casts += 1;
+                    if is_crit { entry.crits += 1; } else { entry.hits += 1; }
+                    entry.total_damage += final_dmg;
+                    total_damage += final_dmg;
+                }
+
+                // On-use Trinkets
+                if self.config.rotation.use_trinkets && trinket_cd <= 0.0 {
+                    let has_trinket = self.config.items.iter().any(|i| i.on_use_ap > 0.0 || i.on_use_haste > 0.0 || i.on_use_armor_pen > 0.0);
+                    if has_trinket {
+                        trinket_cd = 120.0;
+                        let duration = self.config.items.iter().map(|i| i.on_use_duration).fold(20.0, f64::max);
+                        trinket_until = current_time + duration;
+                    }
                 }
             }
 
-            // Recklessness: can be used on pull or with Death Wish
-            if self.config.rotation.use_recklessness && reck_cd <= 0.0 && current_time >= 0.0 {
-                reck_cd = 1800.0;
-                recklessness_until = current_time + 15.0;
-            }
+            // Queue decision for Heroic Strike / Cleave (evaluated each step)
+            let mut want_hs = false;
+            let mut want_cleave = false;
 
-            // Goblin Sapper Charge: fires once per fight at t = 1.0s (450-750 Fire damage, ~10% spell crit for 1.5x)
-            if self.config.buffs.goblin_sapper && !sapper_used && current_time >= 1.0 {
-                sapper_used = true;
-                let base_dmg = rng.gen_range(450.0..=750.0);
-                let is_crit = rng.gen_range(0.0..100.0) < 10.0;
-                let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
-                let entry = ability_stats.entry("Goblin Sapper Charge".to_string()).or_default();
-                entry.casts += 1;
-                if is_crit { entry.crits += 1; } else { entry.hits += 1; }
-                entry.total_damage += final_dmg;
-                total_damage += final_dmg;
-            }
-
-            // Dense Dynamite: fires on a 60s cooldown starting at t = 5.0s (340-460 Fire damage, ~10% spell crit for 1.5x)
-            if self.config.buffs.dense_dynamite && current_time >= dynamite_cd {
-                dynamite_cd = current_time + 60.0;
-                let base_dmg = rng.gen_range(340.0..=460.0);
-                let is_crit = rng.gen_range(0.0..100.0) < 10.0;
-                let final_dmg = if is_crit { base_dmg * 1.5 } else { base_dmg };
-                let entry = ability_stats.entry("Dense Dynamite".to_string()).or_default();
-                entry.casts += 1;
-                if is_crit { entry.crits += 1; } else { entry.hits += 1; }
-                entry.total_damage += final_dmg;
-                total_damage += final_dmg;
-            }
-
-            // On-use Trinkets
-            if self.config.rotation.use_trinkets && trinket_cd <= 0.0 {
-                let has_trinket = self.config.items.iter().any(|i| i.on_use_ap > 0.0 || i.on_use_haste > 0.0 || i.on_use_armor_pen > 0.0);
-                if has_trinket {
-                    trinket_cd = 120.0;
-                    let duration = self.config.items.iter().map(|i| i.on_use_duration).fold(20.0, f64::max);
-                    trinket_until = current_time + duration;
+            if has_apl {
+                if let Some(ref apl) = self.config.rotation.apl {
+                    for row in apl {
+                        if !row.enabled {
+                            continue;
+                        }
+                        let ab = row.ability.to_lowercase();
+                        match ab.as_str() {
+                            "heroic_strike" if !want_hs => {
+                                let all_ok = row.conditions.iter().all(|c| {
+                                    eval_condition(
+                                        c,
+                                        current_time,
+                                        fight_duration,
+                                        rage,
+                                        dynamic_ap,
+                                        in_execute,
+                                        bt_cd,
+                                        ww_cd,
+                                        self.config.encounter.targets,
+                                        death_wish_until,
+                                        recklessness_until,
+                                        bloodrage_until,
+                                        mighty_rage_until,
+                                        blood_fury_until,
+                                        berserking_until,
+                                        elunes_light_until,
+                                        eureka_until,
+                                        eureka_charges,
+                                        flurry_charges,
+                                        crusader_mh_until,
+                                        crusader_oh_until,
+                                    )
+                                });
+                                if all_ok {
+                                    want_hs = true;
+                                }
+                            }
+                            "cleave" if !want_cleave => {
+                                let all_ok = row.conditions.iter().all(|c| {
+                                    eval_condition(
+                                        c,
+                                        current_time,
+                                        fight_duration,
+                                        rage,
+                                        dynamic_ap,
+                                        in_execute,
+                                        bt_cd,
+                                        ww_cd,
+                                        self.config.encounter.targets,
+                                        death_wish_until,
+                                        recklessness_until,
+                                        bloodrage_until,
+                                        mighty_rage_until,
+                                        blood_fury_until,
+                                        berserking_until,
+                                        elunes_light_until,
+                                        eureka_until,
+                                        eureka_charges,
+                                        flurry_charges,
+                                        crusader_mh_until,
+                                        crusader_oh_until,
+                                    )
+                                });
+                                if all_ok {
+                                    want_cleave = true;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            } else {
+                // Legacy queue decision
+                if !in_execute || !self.config.rotation.use_execute {
+                    let hs_threshold = self.config.rotation.hs_rage_threshold;
+                    if self.config.rotation.use_cleave && self.config.encounter.targets > 1 && rage >= hs_threshold {
+                        want_cleave = true;
+                    } else if self.config.rotation.use_heroic_strike && rage >= hs_threshold {
+                        want_hs = true;
+                    }
                 }
             }
 
@@ -452,11 +1002,95 @@ impl SimulationRun {
                 let eureka_active = current_time <= eureka_until && eureka_charges > 0;
                 let ability_cost_discount: f64 = if eureka_active { 5.0 } else { 0.0 };
 
+                let mut selected_gcd: Option<GcdAction> = None;
+                if has_apl {
+                    if let Some(ref apl) = self.config.rotation.apl {
+                        for row in apl {
+                            if !row.enabled {
+                                continue;
+                            }
+                            let all_ok = row.conditions.iter().all(|c| {
+                                eval_condition(
+                                    c,
+                                    current_time,
+                                    fight_duration,
+                                    rage,
+                                    dynamic_ap,
+                                    in_execute,
+                                    bt_cd,
+                                    ww_cd,
+                                    self.config.encounter.targets,
+                                    death_wish_until,
+                                    recklessness_until,
+                                    bloodrage_until,
+                                    mighty_rage_until,
+                                    blood_fury_until,
+                                    berserking_until,
+                                    elunes_light_until,
+                                    eureka_until,
+                                    eureka_charges,
+                                    flurry_charges,
+                                    crusader_mh_until,
+                                    crusader_oh_until,
+                                )
+                            });
+                            if !all_ok {
+                                continue;
+                            }
+                            match row.ability.to_lowercase().as_str() {
+                                "overpower" => {
+                                    if current_time <= overpower_available_until && op_cd <= 0.0 && rage >= (5.0 - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::Overpower);
+                                        break;
+                                    }
+                                }
+                                "execute" => {
+                                    let ec = match self.config.talents.improved_execute { 1 => 13.0, 2..=u8::MAX => 10.0, _ => 15.0 };
+                                    if in_execute && rage >= (ec - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::Execute);
+                                        break;
+                                    }
+                                }
+                                "bloodthirst" => {
+                                    if self.config.talents.bloodthirst > 0 && bt_cd <= 0.0 && rage >= (30.0 - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::Bloodthirst);
+                                        break;
+                                    }
+                                }
+                                "mortal_strike" => {
+                                    if self.config.talents.mortal_strike > 0 && ms_cd <= 0.0 && rage >= (30.0 - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::MortalStrike);
+                                        break;
+                                    }
+                                }
+                                "whirlwind" => {
+                                    let base_ww = 25.0 - (self.config.talents.raging_blows as f64);
+                                    if ww_cd <= 0.0 && rage >= (base_ww - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::Whirlwind);
+                                        break;
+                                    }
+                                }
+                                "hamstring" => {
+                                    if rage >= (10.0 - ability_cost_discount).max(0.0) {
+                                        selected_gcd = Some(GcdAction::Hamstring);
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+
                 // 1. Overpower stance-dance window
-                let can_overpower = self.config.rotation.use_overpower
-                    && current_time <= overpower_available_until
-                    && op_cd <= 0.0
-                    && rage <= self.config.rotation.overpower_max_rage;
+                let can_overpower = if has_apl {
+                    selected_gcd == Some(GcdAction::Overpower)
+                } else {
+                    self.config.rotation.use_overpower
+                        && current_time <= overpower_available_until
+                        && op_cd <= 0.0
+                        && rage <= self.config.rotation.overpower_max_rage
+                };
 
                 if can_overpower {
                     // Stance dance to Battle Stance
@@ -501,13 +1135,15 @@ impl SimulationRun {
 
                             // Crit triggers flurry & deep wounds
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                            if self.config.talents.deep_wounds > 0 {
-                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                                deep_wounds_pool += dw_total;
-                                deep_wounds_ticks_left = 4;
-                                deep_wounds_next_tick = current_time + 3.0;
-                            }
+                            self.trigger_deep_wounds(
+                                false,
+                                dynamic_ap,
+                                dmg_mult,
+                                current_time,
+                                &mut deep_wounds_tick_dmg,
+                                &mut deep_wounds_ticks_left,
+                                &mut deep_wounds_next_tick,
+                            );
                         } else {
                             entry.hits += 1;
                             let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
@@ -541,7 +1177,7 @@ impl SimulationRun {
                                     &mut flurry_charges,
                                     &mut gore_drinker_charges,
                                     &mut total_gore_drinker_heals,
-                                    &mut deep_wounds_pool,
+                                    &mut deep_wounds_tick_dmg,
                                     &mut deep_wounds_ticks_left,
                                     &mut deep_wounds_next_tick,
                                     &mut overpower_available_until,
@@ -561,7 +1197,7 @@ impl SimulationRun {
                 }
 
                 // 2. Execute Phase
-                if in_execute && self.config.rotation.use_execute {
+                if (has_apl && selected_gcd == Some(GcdAction::Execute)) || (!has_apl && in_execute && self.config.rotation.use_execute) {
                     let exec_cost = match self.config.talents.improved_execute {
                         1 => 13.0,
                         2..=u8::MAX => 10.0,
@@ -581,14 +1217,14 @@ impl SimulationRun {
                         2000.0
                     };
 
-                    let prefer_bt = self.config.rotation.use_bloodthirst
+                    let prefer_bt = !has_apl && self.config.rotation.use_bloodthirst
                         && self.config.rotation.use_bt_in_execute
                         && self.config.talents.bloodthirst > 0
                         && bt_cd <= 0.0
                         && rage >= bt_cost
                         && (dynamic_ap >= bt_ap_thresh || rage >= pool_thresh);
 
-                    if !prefer_bt && rage >= effective_exec_cost {
+                    if (has_apl || !prefer_bt) && rage >= effective_exec_cost {
                         let extra_rage = rage - effective_exec_cost;
                         rage = 0.0; // Drains all rage
                         gcd = 1.5;
@@ -626,13 +1262,15 @@ impl SimulationRun {
                             Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                            if self.config.talents.deep_wounds > 0 {
-                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                                deep_wounds_pool += dw_total;
-                                deep_wounds_ticks_left = 4;
-                                deep_wounds_next_tick = current_time + 3.0;
-                            }
+                            self.trigger_deep_wounds(
+                                false,
+                                dynamic_ap,
+                                dmg_mult,
+                                current_time,
+                                &mut deep_wounds_tick_dmg,
+                                &mut deep_wounds_ticks_left,
+                                &mut deep_wounds_next_tick,
+                            );
                         } else {
                             entry.hits += 1;
                             let mut final_dmg = base_exec_dmg * armor_mult * ability_dmg_mult;
@@ -664,7 +1302,7 @@ impl SimulationRun {
                                     &mut flurry_charges,
                                     &mut gore_drinker_charges,
                                     &mut total_gore_drinker_heals,
-                                    &mut deep_wounds_pool,
+                                    &mut deep_wounds_tick_dmg,
                                     &mut deep_wounds_ticks_left,
                                     &mut deep_wounds_next_tick,
                                     &mut overpower_available_until,
@@ -682,7 +1320,12 @@ impl SimulationRun {
 
                 // 3. Bloodthirst
                 let bt_cost = (30.0 - ability_cost_discount).max(0.0);
-                if self.config.rotation.use_bloodthirst && self.config.talents.bloodthirst > 0 && bt_cd <= 0.0 && rage >= bt_cost {
+                let can_bt = if has_apl {
+                    selected_gcd == Some(GcdAction::Bloodthirst)
+                } else {
+                    self.config.rotation.use_bloodthirst && self.config.talents.bloodthirst > 0 && bt_cd <= 0.0 && rage >= bt_cost
+                };
+                if can_bt {
                     rage -= bt_cost;
                     bt_cd = 6.0;
                     gcd = 1.5;
@@ -724,13 +1367,15 @@ impl SimulationRun {
                         Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                        if self.config.talents.deep_wounds > 0 {
-                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                            deep_wounds_pool += dw_total;
-                            deep_wounds_ticks_left = 4;
-                            deep_wounds_next_tick = current_time + 3.0;
-                        }
+                        self.trigger_deep_wounds(
+                            false,
+                            dynamic_ap,
+                            dmg_mult,
+                            current_time,
+                            &mut deep_wounds_tick_dmg,
+                            &mut deep_wounds_ticks_left,
+                            &mut deep_wounds_next_tick,
+                        );
                     } else {
                         entry.hits += 1;
                         let mut final_dmg = base_bt_dmg * armor_mult * ability_dmg_mult;
@@ -762,7 +1407,107 @@ impl SimulationRun {
                                 &mut flurry_charges,
                                 &mut gore_drinker_charges,
                                 &mut total_gore_drinker_heals,
-                                &mut deep_wounds_pool,
+                                &mut deep_wounds_tick_dmg,
+                                &mut deep_wounds_ticks_left,
+                                &mut deep_wounds_next_tick,
+                                &mut overpower_available_until,
+                                &mut crusader_mh_until,
+                                &mut bonereaver_stacks,
+                                &mut bonereaver_until,
+                                &mut total_damage,
+                                &mut ability_stats,
+                            );
+                        }
+                    }
+                    continue;
+                }
+
+                // 3b. Mortal Strike
+                let ms_cost = (30.0 - ability_cost_discount).max(0.0);
+                let can_ms = if has_apl {
+                    selected_gcd == Some(GcdAction::MortalStrike)
+                } else {
+                    self.config.talents.mortal_strike > 0 && ms_cd <= 0.0 && rage >= ms_cost
+                };
+                if can_ms {
+                    rage -= ms_cost;
+                    ms_cd = 6.0;
+                    gcd = 1.5;
+
+                    let mut ability_dmg_mult = dmg_mult;
+                    if eureka_active {
+                        eureka_charges -= 1;
+                        ability_dmg_mult *= 1.10;
+                    }
+
+                    let roll: f64 = rng.gen_range(0.0..100.0);
+                    let yellow_miss = self.sheet.yellow_miss_pct;
+                    let dodge = self.dodge_pct;
+                    let yellow_crit = dynamic_crit.min(100.0 - yellow_miss - dodge);
+
+                    let entry = ability_stats.entry("Mortal Strike".to_string()).or_default();
+                    entry.casts += 1;
+
+                    let weapon_roll = rng.gen_range(self.mh.min_dmg..=self.mh.max_dmg);
+                    let raw_dmg = weapon_roll + (dynamic_ap / 14.0) * self.norm_mh_speed + 160.0;
+
+                    if roll < yellow_miss {
+                        entry.misses += 1;
+                    } else if roll < yellow_miss + dodge {
+                        entry.dodges += 1;
+                        overpower_available_until = current_time + 5.0;
+                    } else if roll < yellow_miss + dodge + yellow_crit {
+                        entry.crits += 1;
+                        let mut final_dmg = raw_dmg * impale_crit_mult * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
+                        entry.total_damage += final_dmg;
+                        total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+
+                        if self.config.talents.flurry > 0 { flurry_charges = 3; }
+                        self.trigger_deep_wounds(
+                            false,
+                            dynamic_ap,
+                            dmg_mult,
+                            current_time,
+                            &mut deep_wounds_tick_dmg,
+                            &mut deep_wounds_ticks_left,
+                            &mut deep_wounds_next_tick,
+                        );
+                    } else {
+                        entry.hits += 1;
+                        let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
+                        if self.config.buffs.gift_of_arthas {
+                            final_dmg += 8.0 * armor_mult;
+                        }
+                        entry.total_damage += final_dmg;
+                        total_damage += final_dmg;
+
+                        Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
+                    }
+
+                    if self.config.buffs.windfury_totem && roll >= yellow_miss + dodge {
+                        if rng.gen_range(0.0..100.0) < 20.0 {
+                            self.resolve_windfury_extra_swing(
+                                rng,
+                                current_time,
+                                dynamic_ap,
+                                dynamic_crit,
+                                armor_mult,
+                                dmg_mult,
+                                max_rage,
+                                is_undead,
+                                &mut touch_of_the_grave_cd,
+                                &mut touch_of_the_grave_hits,
+                                &mut rage,
+                                &mut total_rage_gained,
+                                &mut flurry_charges,
+                                &mut gore_drinker_charges,
+                                &mut total_gore_drinker_heals,
+                                &mut deep_wounds_tick_dmg,
                                 &mut deep_wounds_ticks_left,
                                 &mut deep_wounds_next_tick,
                                 &mut overpower_available_until,
@@ -780,7 +1525,12 @@ impl SimulationRun {
                 // 4. Whirlwind
                 let base_ww_cost = 25.0 - (self.config.talents.raging_blows as f64);
                 let ww_cost = (base_ww_cost - ability_cost_discount).max(0.0);
-                if self.config.rotation.use_whirlwind && ww_cd <= 0.0 && rage >= ww_cost {
+                let can_ww = if has_apl {
+                    selected_gcd == Some(GcdAction::Whirlwind)
+                } else {
+                    self.config.rotation.use_whirlwind && ww_cd <= 0.0 && rage >= ww_cost
+                };
+                if can_ww {
                     rage -= ww_cost;
                     ww_cd = 10.0;
                     gcd = 1.5;
@@ -822,13 +1572,15 @@ impl SimulationRun {
                             Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                             if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                            if self.config.talents.deep_wounds > 0 {
-                                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                                deep_wounds_pool += dw_total;
-                                deep_wounds_ticks_left = 4;
-                                deep_wounds_next_tick = current_time + 3.0;
-                            }
+                            self.trigger_deep_wounds(
+                                false,
+                                dynamic_ap,
+                                dmg_mult,
+                                current_time,
+                                &mut deep_wounds_tick_dmg,
+                                &mut deep_wounds_ticks_left,
+                                &mut deep_wounds_next_tick,
+                            );
                         } else {
                             entry.hits += 1;
                             let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
@@ -871,13 +1623,15 @@ impl SimulationRun {
                                 Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                                 if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                                if self.config.talents.deep_wounds > 0 {
-                                    let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                                    let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                                    deep_wounds_pool += dw_total;
-                                    deep_wounds_ticks_left = 4;
-                                    deep_wounds_next_tick = current_time + 3.0;
-                                }
+                                self.trigger_deep_wounds(
+                                    true,
+                                    dynamic_ap,
+                                    dmg_mult,
+                                    current_time,
+                                    &mut deep_wounds_tick_dmg,
+                                    &mut deep_wounds_ticks_left,
+                                    &mut deep_wounds_next_tick,
+                                );
                             } else {
                                 entry.hits += 1;
                                 let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
@@ -911,7 +1665,7 @@ impl SimulationRun {
                                 &mut flurry_charges,
                                 &mut gore_drinker_charges,
                                 &mut total_gore_drinker_heals,
-                                &mut deep_wounds_pool,
+                                &mut deep_wounds_tick_dmg,
                                 &mut deep_wounds_ticks_left,
                                 &mut deep_wounds_next_tick,
                                 &mut overpower_available_until,
@@ -928,12 +1682,16 @@ impl SimulationRun {
 
                 // 5. Hamstring (Rage Dump / Proc Fishing)
                 let hs_cost = (10.0 - ability_cost_discount).max(0.0);
-                if self.config.rotation.use_hamstring
-                    && rage >= self.config.rotation.hamstring_rage_threshold
-                    && bt_cd > 1.0
-                    && ww_cd > 1.0
-                    && rage >= hs_cost
-                {
+                let can_hamstring = if has_apl {
+                    selected_gcd == Some(GcdAction::Hamstring)
+                } else {
+                    self.config.rotation.use_hamstring
+                        && rage >= self.config.rotation.hamstring_rage_threshold
+                        && bt_cd > 1.0
+                        && ww_cd > 1.0
+                        && rage >= hs_cost
+                };
+                if can_hamstring {
                     rage -= hs_cost;
                     gcd = 1.5;
 
@@ -970,13 +1728,15 @@ impl SimulationRun {
                         Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                        if self.config.talents.deep_wounds > 0 {
-                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                            deep_wounds_pool += dw_total;
-                            deep_wounds_ticks_left = 4;
-                            deep_wounds_next_tick = current_time + 3.0;
-                        }
+                        self.trigger_deep_wounds(
+                            false,
+                            dynamic_ap,
+                            dmg_mult,
+                            current_time,
+                            &mut deep_wounds_tick_dmg,
+                            &mut deep_wounds_ticks_left,
+                            &mut deep_wounds_next_tick,
+                        );
                     } else {
                         entry.hits += 1;
                         let mut final_dmg = base_hs_dmg * armor_mult * ability_dmg_mult;
@@ -1008,7 +1768,7 @@ impl SimulationRun {
                                 &mut flurry_charges,
                                 &mut gore_drinker_charges,
                                 &mut total_gore_drinker_heals,
-                                &mut deep_wounds_pool,
+                                &mut deep_wounds_tick_dmg,
                                 &mut deep_wounds_ticks_left,
                                 &mut deep_wounds_next_tick,
                                 &mut overpower_available_until,
@@ -1024,34 +1784,26 @@ impl SimulationRun {
                 }
             }
 
-            // Heroic Strike / Cleave Queue Decision
-            // Do not queue during execute phase if using execute
-            if (!in_execute || !self.config.rotation.use_execute) && !hs_queued {
-                let want_cleave = self.config.rotation.use_cleave && self.config.encounter.targets > 1;
-                let hs_threshold = self.config.rotation.hs_rage_threshold;
-                if (self.config.rotation.use_heroic_strike || want_cleave) && rage >= hs_threshold {
-                    hs_queued = true;
-                }
-            }
-
             // Main Hand Auto Attack / Queued Yellow Attack
             if mh_swing_timer <= 0.0 {
                 mh_swing_timer = self.mh.speed;
 
-                let use_cleave = self.config.rotation.use_cleave && self.config.encounter.targets > 1;
+                let use_cleave = want_cleave && self.config.encounter.targets > 1;
+                let use_hs = !use_cleave && want_hs;
                 let eureka_active = current_time <= eureka_until && eureka_charges > 0;
                 let ability_cost_discount: f64 = if eureka_active { 5.0 } else { 0.0 };
                 let base_queue_cost = if use_cleave {
                     20.0 - (self.config.talents.raging_blows as f64)
-                } else {
+                } else if use_hs {
                     15.0 - (self.config.talents.improved_heroic_strike as f64)
+                } else {
+                    0.0
                 };
                 let queue_cost = (base_queue_cost - ability_cost_discount).max(0.0);
 
-                if hs_queued && rage >= queue_cost {
+                if (use_cleave || use_hs) && rage >= queue_cost {
                     // HEROIC STRIKE / CLEAVE EXECUTES
                     rage -= queue_cost;
-                    hs_queued = false;
 
                     let mut ability_dmg_mult = dmg_mult;
                     if eureka_active {
@@ -1091,13 +1843,15 @@ impl SimulationRun {
                         Self::check_touch_of_the_grave(is_undead, current_time, &mut touch_of_the_grave_cd, &mut touch_of_the_grave_hits, &mut total_damage);
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                        if self.config.talents.deep_wounds > 0 {
-                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                            deep_wounds_pool += dw_total;
-                            deep_wounds_ticks_left = 4;
-                            deep_wounds_next_tick = current_time + 3.0;
-                        }
+                        self.trigger_deep_wounds(
+                            false,
+                            dynamic_ap,
+                            dmg_mult,
+                            current_time,
+                            &mut deep_wounds_tick_dmg,
+                            &mut deep_wounds_ticks_left,
+                            &mut deep_wounds_next_tick,
+                        );
                     } else {
                         entry.hits += 1;
                         let mut final_dmg = raw_dmg * armor_mult * ability_dmg_mult;
@@ -1150,7 +1904,7 @@ impl SimulationRun {
                                 &mut flurry_charges,
                                 &mut gore_drinker_charges,
                                 &mut total_gore_drinker_heals,
-                                &mut deep_wounds_pool,
+                                &mut deep_wounds_tick_dmg,
                                 &mut deep_wounds_ticks_left,
                                 &mut deep_wounds_next_tick,
                                 &mut overpower_available_until,
@@ -1164,8 +1918,6 @@ impl SimulationRun {
                     }
                 } else {
                     // NORMAL MAIN HAND WHITE ATTACK
-                    hs_queued = false; // drop queue if rage dropped below cost
-
                     let entry = ability_stats.entry("Melee (MH)".to_string()).or_default();
                     entry.casts += 1;
 
@@ -1239,13 +1991,15 @@ impl SimulationRun {
                         total_rage_gained += rage - old_rage;
 
                         if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                        if self.config.talents.deep_wounds > 0 {
-                            let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                            let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                            deep_wounds_pool += dw_total;
-                            deep_wounds_ticks_left = 4;
-                            deep_wounds_next_tick = current_time + 3.0;
-                        }
+                        self.trigger_deep_wounds(
+                            false,
+                            dynamic_ap,
+                            dmg_mult,
+                            current_time,
+                            &mut deep_wounds_tick_dmg,
+                            &mut deep_wounds_ticks_left,
+                            &mut deep_wounds_next_tick,
+                        );
 
                         self.resolve_on_hit_procs(
                             rng,
@@ -1313,7 +2067,7 @@ impl SimulationRun {
                                 &mut flurry_charges,
                                 &mut gore_drinker_charges,
                                 &mut total_gore_drinker_heals,
-                                &mut deep_wounds_pool,
+                                &mut deep_wounds_tick_dmg,
                                 &mut deep_wounds_ticks_left,
                                 &mut deep_wounds_next_tick,
                                 &mut overpower_available_until,
@@ -1410,13 +2164,15 @@ impl SimulationRun {
                     total_rage_gained += rage - old_rage;
 
                     if self.config.talents.flurry > 0 { flurry_charges = 3; }
-                    if self.config.talents.deep_wounds > 0 {
-                        let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                        let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                        deep_wounds_pool += dw_total;
-                        deep_wounds_ticks_left = 4;
-                        deep_wounds_next_tick = current_time + 3.0;
-                    }
+                    self.trigger_deep_wounds(
+                        true,
+                        dynamic_ap,
+                        dmg_mult,
+                        current_time,
+                        &mut deep_wounds_tick_dmg,
+                        &mut deep_wounds_ticks_left,
+                        &mut deep_wounds_next_tick,
+                    );
 
                     self.resolve_on_hit_procs(
                         rng,
@@ -1508,6 +2264,35 @@ impl SimulationRun {
         }
     }
 
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    fn trigger_deep_wounds(
+        &self,
+        is_oh: bool,
+        dynamic_ap: f64,
+        dmg_mult: f64,
+        current_time: f64,
+        deep_wounds_tick_dmg: &mut f64,
+        deep_wounds_ticks_left: &mut u8,
+        deep_wounds_next_tick: &mut f64,
+    ) {
+        if self.config.talents.deep_wounds > 0 {
+            let awd = if is_oh {
+                if let Some(ref oh) = self.oh {
+                    ((oh.min_dmg + oh.max_dmg) / 2.0 + (dynamic_ap / 14.0) * oh.speed) * 0.5 * dmg_mult
+                } else {
+                    0.0
+                }
+            } else {
+                ((self.mh.min_dmg + self.mh.max_dmg) / 2.0 + (dynamic_ap / 14.0) * self.mh.speed) * dmg_mult
+            };
+            let new_dw_dmg = awd * 0.20 * (self.config.talents.deep_wounds as f64);
+            *deep_wounds_tick_dmg = new_dw_dmg / 4.0;
+            *deep_wounds_ticks_left = 4;
+            *deep_wounds_next_tick = current_time + 3.0;
+        }
+    }
+
     #[inline(always)]
     fn check_touch_of_the_grave(
         is_undead: bool,
@@ -1541,7 +2326,7 @@ impl SimulationRun {
         flurry_charges: &mut u8,
         gore_drinker_charges: &mut u8,
         total_gore_drinker_heals: &mut u32,
-        deep_wounds_pool: &mut f64,
+        deep_wounds_tick_dmg: &mut f64,
         deep_wounds_ticks_left: &mut u8,
         deep_wounds_next_tick: &mut f64,
         overpower_available_until: &mut f64,
@@ -1592,13 +2377,15 @@ impl SimulationRun {
             *total_rage_gained += *rage - old_rage;
 
             if self.config.talents.flurry > 0 { *flurry_charges = 3; }
-            if self.config.talents.deep_wounds > 0 {
-                let avg_mh_dmg = (self.mh.min_dmg + self.mh.max_dmg) / 2.0;
-                let dw_total = (avg_mh_dmg + (dynamic_ap / 14.0) * self.mh.speed) * 0.20 * (self.config.talents.deep_wounds as f64);
-                *deep_wounds_pool += dw_total;
-                *deep_wounds_ticks_left = 4;
-                *deep_wounds_next_tick = current_time + 3.0;
-            }
+            self.trigger_deep_wounds(
+                false,
+                dynamic_ap,
+                dmg_mult,
+                current_time,
+                deep_wounds_tick_dmg,
+                deep_wounds_ticks_left,
+                deep_wounds_next_tick,
+            );
 
             self.resolve_on_hit_procs(
                 rng,

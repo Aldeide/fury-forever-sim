@@ -30,7 +30,7 @@ interface SlotTableProps {
   isSimulating: boolean;
   simulationProgress?: { completed: number; total: number; pct: number } | null;
   onEquipItem: (slot: EquipmentSlot, item: ItemStats) => void;
-  onApplyEnchant: (slot: EquipmentSlot, enchant: EnchantInfo) => void;
+  onApplyEnchant: (slot: EquipmentSlot, enchant: EnchantInfo | null) => void;
   onSimulateAllInSlot: (slot: EquipmentSlot, items: ItemStats[]) => void;
   onOpenCustomItemModal?: () => void;
   buffs?: BuffConfig;
@@ -215,8 +215,12 @@ export const SlotTable: React.FC<SlotTableProps> = ({
               <select
                 value={equippedEnchant?.id || ''}
                 onChange={(e) => {
-                  const ench = availableEnchants.find((en) => en.id === e.target.value);
-                  if (ench) onApplyEnchant(selectedSlot, ench);
+                  if (!e.target.value) {
+                    onApplyEnchant(selectedSlot, null);
+                  } else {
+                    const ench = availableEnchants.find((en) => en.id === e.target.value);
+                    if (ench) onApplyEnchant(selectedSlot, ench);
+                  }
                 }}
                 className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac] flex-1"
               >

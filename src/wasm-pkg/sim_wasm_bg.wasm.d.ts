@@ -5,6 +5,7 @@ export const compute_sheet_json: (a: number, b: number) => [number, number];
 export const run_batch_slot_json: (a: number, b: number) => [number, number];
 export const run_sim_json: (a: number, b: number) => [number, number];
 export const run_stat_weights_json: (a: number, b: number) => [number, number];
+export const simulate_json: (a: number, b: number, c: number) => [number, number];
 export const __wbindgen_externrefs: WebAssembly.Table;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

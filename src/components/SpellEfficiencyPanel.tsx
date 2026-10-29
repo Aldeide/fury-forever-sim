@@ -10,6 +10,7 @@ import {
   analyzeSpellPriorities,
   DEFAULT_COMBAT_BUFF_TOGGLES,
   CombatBuffToggles,
+  generateOptimalApl,
 } from '../utils/spellAnalyzer';
 import { getAbilityIconUrl } from '../utils/wowhead';
 
@@ -19,6 +20,7 @@ export interface SpellEfficiencyPanelProps {
   simConfig?: SimConfig;
   race?: Race;
   talents?: TalentConfig;
+  onRotationChange?: (rotation: RotationConfig) => void;
 }
 
 export const SpellEfficiencyPanel: React.FC<SpellEfficiencyPanelProps> = ({
@@ -27,6 +29,7 @@ export const SpellEfficiencyPanel: React.FC<SpellEfficiencyPanelProps> = ({
   simConfig,
   race = 'orc',
   talents = {},
+  onRotationChange,
 }) => {
   const [combatBuffs, setCombatBuffs] = useState<CombatBuffToggles>(DEFAULT_COMBAT_BUFF_TOGGLES);
   const toggleCombatBuff = (key: keyof CombatBuffToggles) => {
@@ -140,18 +143,42 @@ export const SpellEfficiencyPanel: React.FC<SpellEfficiencyPanelProps> = ({
           <h2 className="text-sm font-bold tracking-tight uppercase text-[#000000]">
             Bloodthirst vs. Execute Breakpoint Advisor & Spell Efficiency
           </h2>
-          <span className="text-[11px] text-[#555555]">
-            Target Breakpoint: {impExecuteRank === 2 ? '2,000 AP' : '1,833 AP (0/2 Imp Execute)'}
-          </span>
+          <div className="flex items-center space-x-3">
+            {onRotationChange && (
+              <button
+                onClick={() =>
+                  onRotationChange({
+                    ...rotation,
+                    apl: generateOptimalApl(effectiveSimConfig, report || undefined),
+                    useBtInExecute: true,
+                    executeBtApThreshold: report?.btBreakpointAp || 2000,
+                    executeRagePoolThreshold: 45,
+                    overpowerMaxRage: 25,
+                  })
+                }
+                className="px-2.5 py-1 text-xs font-bold text-white bg-[#1861ac] hover:bg-[#134e8a] rounded shadow-sm flex items-center space-x-1"
+              >
+                <span>⚡ Apply Optimal APL to Rotation</span>
+              </button>
+            )}
+            <span className="text-[11px] text-[#555555]">
+              Target Breakpoint: {impExecuteRank === 2 ? '2,000 AP' : '1,833 AP (0/2 Imp Execute)'}
+            </span>
+          </div>
         </div>
 
         {/* Clean #eeeeee Summary Banner */}
         <div className="p-3 bg-[#eeeeee] border-l-4 border-[#1861ac] text-xs text-[#000000] rounded-r space-y-1">
-          <div className="font-bold flex items-center justify-between">
+          <div className="font-bold flex flex-wrap items-center justify-between gap-2">
             <span>Breakpoint Analysis: Bloodthirst (30 Rage) vs Execute (30 Rage)</span>
-            <span className="font-semibold text-[#1861ac]">
-              Baseline: {baselineAp} AP | Active: {activeAp} AP
-            </span>
+            <div className="flex items-center space-x-3">
+              <span className="text-[#1861ac]">
+                Marginal Rage Value (λ_R): {(report?.marginalRageValue ?? 12.5).toFixed(1)} dmg/rage
+              </span>
+              <span className="font-semibold text-[#1861ac]">
+                Baseline: {baselineAp} AP | Active: {activeAp} AP
+              </span>
+            </div>
           </div>
           <p className="text-[#333333] leading-relaxed">
             {activeAp >= btBreakpoint
@@ -174,6 +201,7 @@ export const SpellEfficiencyPanel: React.FC<SpellEfficiencyPanelProps> = ({
                 <th className="text-right">Δ Base %</th>
                 <th className="text-right">DPR</th>
                 <th className="text-right">DPET</th>
+                <th className="text-right">Net Score</th>
                 <th>Priority Role</th>
               </tr>
             </thead>
@@ -206,6 +234,9 @@ export const SpellEfficiencyPanel: React.FC<SpellEfficiencyPanelProps> = ({
                   </td>
                   <td className="text-right font-bold text-[#000000]">{spell.buffedDpr.toFixed(1)}</td>
                   <td className="text-right">{Math.round(spell.buffedDpet)}</td>
+                  <td className="text-right font-bold text-[#1861ac]">
+                    {spell.netScore ?? Math.round(spell.buffedDamage - (report?.marginalRageValue ?? 12.5) * spell.effectiveRageCost)}
+                  </td>
                   <td className="text-[#555555] text-[11px] max-w-xs">{spell.recommendation}</td>
                 </tr>
               ))}

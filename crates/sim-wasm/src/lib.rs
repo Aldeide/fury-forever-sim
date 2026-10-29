@@ -25,6 +25,20 @@ pub fn run_sim_json(config_json: &str) -> String {
 }
 
 #[wasm_bindgen]
+pub fn simulate_json(config_json: &str, iterations: u32) -> String {
+    match serde_json::from_str::<SimConfig>(config_json) {
+        Ok(mut config) => {
+            if iterations > 0 {
+                config.encounter.iterations = iterations;
+            }
+            let result = run_sim(&config);
+            serde_json::to_string(&result).unwrap_or_else(|e| format!("{{\"error\":\"{}\"}}", e))
+        }
+        Err(e) => format!("{{\"error\":\"Failed to parse SimConfig: {}\"}}", e),
+    }
+}
+
+#[wasm_bindgen]
 pub fn run_batch_slot_json(request_json: &str) -> String {
     match serde_json::from_str::<BatchSlotRequest>(request_json) {
         Ok(request) => {

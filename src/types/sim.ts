@@ -281,14 +281,23 @@ export interface AplCondition {
   type:
     | 'always'
     | 'rage_gte'
+    | 'rage_above'
     | 'rage_lte'
+    | 'rage_below'
     | 'execute_phase'
     | 'non_execute_phase'
     | 'ap_gte'
+    | 'ap_above'
     | 'targets_gte'
     | 'time_remaining_lte'
+    | 'time_remaining_below'
+    | 'buff_active'
+    | 'buff_inactive'
     | 'bt_ww_cd';
   value?: number;
+  buff?: string;
+  targetBuff?: string;
+  target_buff?: string;
 }
 
 export interface AplActionItem {
@@ -302,6 +311,7 @@ export interface AplActionItem {
     | 'cleave'
     | 'overpower'
     | 'hamstring'
+    | 'sunder_armor'
     | 'slam'
     | 'mortal_strike'
     | 'rend'
@@ -316,6 +326,8 @@ export interface AplActionItem {
   conditions: AplCondition[];
   note?: string;
 }
+
+export type AplRow = AplActionItem;
 
 /**
  * RotationConfig matching Rust sim-core (camelCase) and UI

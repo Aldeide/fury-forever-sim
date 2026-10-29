@@ -1,4 +1,4 @@
-import { SimConfig, RotationConfig } from '../types/sim';
+import { SimConfig, RotationConfig, AplActionItem } from '../types/sim';
 import { calculateCharacterSheet } from '../workers/simEngineTs';
 
 /**
@@ -37,6 +37,7 @@ export interface SpellEfficiencyRow {
   critChancePct: number;
   hitChancePct: number;
   recommendation: string;
+  netScore?: number;
 }
 
 /**
@@ -53,6 +54,7 @@ export interface PriorityAnalysisReport {
   spells: SpellEfficiencyRow[];
   optimalPriorityOrder: string[];
   executePriorityOrder: string[];
+  marginalRageValue?: number;
 }
 
 /**
@@ -85,6 +87,34 @@ export const DEFAULT_COMBAT_BUFF_TOGGLES: CombatBuffToggles = {
  * 8 Empirically tested rotation priority profiles for warrior sim comparisons.
  */
 export const PRIORITY_PRESET_PROFILES: PriorityPresetProfile[] = [
+  {
+    id: 'wow_forever_optimal',
+    name: 'WoW Forever Optimal',
+    description: 'Mathematically optimized APL profile based on dynamic spell efficiency and marginal rage value analysis.',
+    rotation: {
+      useBloodthirst: true,
+      bloodthirstPrio: 1,
+      useWhirlwind: true,
+      whirlwindPrio: 2,
+      useOverpower: true,
+      overpowerMaxRage: 25,
+      useExecute: true,
+      useBtInExecute: true,
+      executeBtApThreshold: 2000,
+      executeRagePoolThreshold: 45,
+      useHeroicStrike: true,
+      hsRageThreshold: 40,
+      useCleave: false,
+      useHamstring: true,
+      hamstringRageThreshold: 55,
+      useRacial: true,
+      useDeathWish: true,
+      useRecklessness: true,
+      useBloodrage: true,
+      useBerserkerRage: true,
+      useTrinkets: true,
+    },
+  },
   {
     id: 'standard_fury',
     name: 'Standard Fury (Balanced)',
@@ -619,6 +649,11 @@ export function analyzeSpellPriorities(
     hamRow,
   ];
 
+  const marginalRageValue = toggles.executePhase ? execMarginalRow.buffedDpr : hsRow.buffedDpr;
+  for (const s of spells) {
+    s.netScore = Math.round(s.buffedDamage - marginalRageValue * s.effectiveRageCost);
+  }
+
   // Mathematical Breakpoint AP: 0.45 * AP == 600 + 15 * (30 - execBaseCost)
   // With 2/2 Imp Execute (cost 10): 600 + 15 * 20 = 900 -> AP = 900 / 0.45 = 2000.0 AP
   // With 1/2 Imp Execute (cost 13): 600 + 15 * 17 = 855 -> AP = 855 / 0.45 = 1900.0 AP
@@ -668,9 +703,110 @@ export function analyzeSpellPriorities(
     spells,
     optimalPriorityOrder,
     executePriorityOrder,
+    marginalRageValue,
   };
 }
 
 function buffedRowDpr(row: SpellEfficiencyRow): string {
   return `${row.buffedDpr.toFixed(1)} dmg/rage`;
 }
+
+export function generateOptimalApl(
+  config: SimConfig,
+  existingReport?: PriorityAnalysisReport
+): AplActionItem[] {
+  const report = existingReport || analyzeSpellPriorities(config);
+  const actions: AplActionItem[] = [];
+
+  // Sort spells by netScore descending
+  const sortedSpells = [...report.spells].sort((a, b) => (b.netScore ?? 0) - (a.netScore ?? 0));
+
+  for (const spell of sortedSpells) {
+    if (spell.id === 'bloodthirst') {
+      actions.push({
+        id: 'bt_optimal',
+        enabled: Boolean(config.rotation.useBloodthirst),
+        ability: 'bloodthirst',
+        conditions: [],
+        note: 'Bloodthirst (Top Single-Target GCD)',
+      });
+    } else if (spell.id === 'whirlwind') {
+      actions.push({
+        id: 'ww_optimal',
+        enabled: Boolean(config.rotation.useWhirlwind),
+        ability: 'whirlwind',
+        conditions: [],
+        note: 'Whirlwind',
+      });
+    } else if (spell.id === 'execute_30' || spell.id === 'execute_marginal') {
+      actions.push({
+        id: 'exec_optimal',
+        enabled: Boolean(config.rotation.useExecute),
+        ability: 'execute',
+        conditions: [],
+        note: 'Execute',
+      });
+    } else if (spell.id === 'overpower') {
+      actions.push({
+        id: 'op_optimal',
+        enabled: Boolean(config.rotation.useOverpower),
+        ability: 'overpower',
+        conditions: [],
+        note: 'Overpower',
+      });
+    } else if (spell.id === 'heroic_strike') {
+      actions.push({
+        id: 'hs_optimal',
+        enabled: Boolean(config.rotation.useHeroicStrike),
+        ability: 'heroic_strike',
+        conditions: [],
+        note: 'Heroic Strike',
+      });
+    } else if (spell.id === 'hamstring') {
+      actions.push({
+        id: 'ham_optimal',
+        enabled: Boolean(config.rotation.useHamstring),
+        ability: 'hamstring',
+        conditions: [],
+        note: 'Hamstring',
+      });
+    }
+  }
+
+  return actions;
+}
+
+export function chooseOptimalSpellProgrammatically(
+  config: SimConfig,
+  currentRage: number,
+  targetHealthPct: number,
+  isExecuting: boolean,
+  hasDodged: boolean
+): string {
+  const report = analyzeSpellPriorities(config);
+  const sortedSpells = [...report.spells].sort((a, b) => (b.netScore ?? 0) - (a.netScore ?? 0));
+
+  for (const spell of sortedSpells) {
+    if (spell.id === 'bloodthirst' && config.rotation.useBloodthirst && currentRage >= spell.effectiveRageCost) {
+      return 'Bloodthirst';
+    }
+    if (spell.id === 'whirlwind' && config.rotation.useWhirlwind && currentRage >= spell.effectiveRageCost) {
+      return 'Whirlwind';
+    }
+    if ((spell.id === 'execute_30' || spell.id === 'execute_marginal') && config.rotation.useExecute && isExecuting && currentRage >= spell.effectiveRageCost) {
+      return 'Execute';
+    }
+    if (spell.id === 'overpower' && config.rotation.useOverpower && hasDodged && currentRage <= 25) {
+      return 'Overpower';
+    }
+    if (spell.id === 'heroic_strike' && config.rotation.useHeroicStrike && currentRage >= (config.rotation.hsRageThreshold ?? 45)) {
+      return 'Heroic Strike';
+    }
+    if (spell.id === 'hamstring' && config.rotation.useHamstring && currentRage >= 60) {
+      return 'Hamstring';
+    }
+  }
+
+  return 'Wait';
+}
+

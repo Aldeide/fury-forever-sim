@@ -9,6 +9,8 @@ export function run_sim_json(config_json: string): string;
 
 export function run_stat_weights_json(config_json: string): string;
 
+export function simulate_json(config_json: string, iterations: number): string;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -17,6 +19,7 @@ export interface InitOutput {
     readonly run_batch_slot_json: (a: number, b: number) => [number, number];
     readonly run_sim_json: (a: number, b: number) => [number, number];
     readonly run_stat_weights_json: (a: number, b: number) => [number, number];
+    readonly simulate_json: (a: number, b: number, c: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

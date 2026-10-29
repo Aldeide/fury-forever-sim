@@ -385,13 +385,19 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
 
   const tacticalMasteryRetained = stats.retainedStanceRage ?? 10;
 
+  const hasApl = Array.isArray(rotation.apl) && rotation.apl.length > 0;
+
   let totalSimDamage = 0;
   const abilityStats: Record<string, { casts: number; hits: number; crits: number; misses: number; dodges: number; glancings: number; damage: number }> = {
     'Bloodthirst': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Whirlwind': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Heroic Strike': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Cleave': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Execute': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Overpower': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Mortal Strike': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Slam': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
+    'Hamstring': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Auto-Attack (MH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Auto-Attack (OH)': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
     'Windfury Attack': { casts: 0, hits: 0, crits: 0, misses: 0, dodges: 0, glancings: 0, damage: 0 },
@@ -448,6 +454,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
     let gcdTimer = 0.0;
     let btCd = 0.0;
     let wwCd = 0.0;
+    let msCd = 0.0;
+    let bloodrageCd = 0.0;
     let racialCd = 0.0;
     let mightyRageActiveUntil = -1.0;
     let mightyRageCd = 0.0;
@@ -484,15 +492,15 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
     };
 
-    const triggerDeepWounds = (ap: number) => {
-      if ((talents.deepWounds || 0) > 0) {
-        const outstandingDmg = deepWoundsTicks * deepWoundsTickDamage;
-        const avgMhWeaponDmg = (mhMinDmg + mhMaxDmg) / 2;
-        const dwRank = talents.deepWounds || 3;
-        const newDwDmg = 0.20 * dwRank * (avgMhWeaponDmg + (ap / 14) * mhSpeed);
-        const totalDwDmg = outstandingDmg + newDwDmg;
+    const triggerDeepWounds = (ap: number, isOh = false, dmgMult = 1.0) => {
+      const dwRank = talents.deepWounds || 0;
+      if (dwRank > 0) {
+        const awd = isOh
+          ? ((ohMinDmg + ohMaxDmg) / 2 + (ap / 14) * ohSpeed) * 0.5 * (1.0 + (talents.dualWieldSpec || talents.dualWieldSpecialization || 0) * 0.05) * dmgMult
+          : ((mhMinDmg + mhMaxDmg) / 2 + (ap / 14) * mhSpeed) * dmgMult;
+        const newDwDmg = awd * 0.20 * dwRank;
+        deepWoundsTickDamage = newDwDmg / 4.0;
         deepWoundsTicks = 4;
-        deepWoundsTickDamage = totalDwDmg / 4;
         nextDeepWoundsTick = time + 3.0;
       }
     };
@@ -516,7 +524,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         checkTouchOfTheGrave();
         rage = Math.min(maxRage, rage + mhCritRage);
         flurryCharges = 3;
-        triggerDeepWounds(ap);
+        triggerDeepWounds(ap, false, dmgMult);
       } else {
         abilityStats['Windfury Attack'].hits++;
         const weaponRoll = mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg);
@@ -562,7 +570,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       } else if (roll < critThreshold) {
         abilityStats['Auto-Attack (MH)'].crits++;
         flurryCharges = 3;
-        triggerDeepWounds(ap);
+        triggerDeepWounds(ap, false, dmgMult);
         const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (ap / 14) * mhSpeed;
         let dmg = rawDmg * armorMultiplier * 2.0 * dmgMult;
         if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
@@ -593,18 +601,169 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
     };
 
     while (time < iterDuration) {
-      if (rotation.useDeathWish && talents.deathWish && deathWishActiveUntil < time - 180 && time >= (rotation.deathWishTiming || 0)) {
-        if (rage >= 10) {
-          rage -= 10;
-          deathWishActiveUntil = time + 30.0;
+      const isExecutePhase = (rotation.executePhase !== false) && time >= executeThresholdTime;
+
+      let currentAp = baseAp;
+      const crusaderBonus = buffs.blessingOfKings ? 220 : 200;
+      if (crusaderMhActiveUntil > time) currentAp += crusaderBonus;
+      if (crusaderOhActiveUntil > time) currentAp += crusaderBonus;
+      if (mightyRageActiveUntil > time) currentAp += buffs.blessingOfKings ? 132 : 120;
+      if (bloodFuryActiveUntil > time) currentAp *= 1.10;
+
+      let currentHaste = baseHaste;
+      if (berserkingActiveUntil > time) currentHaste += 10.0;
+      if (flurryCharges > 0) currentHaste += (talents.flurry ? talents.flurry * 6.0 : 30.0);
+      const hasteMult = 1.0 + currentHaste / 100.0;
+
+      let currentCrit = baseCrit;
+      if (elunesLightActiveUntil > time) currentCrit += 10.0;
+      if (recklessnessActiveUntil > time) currentCrit += 100.0;
+
+      const eurekaActive = eurekaActiveUntil > time && eurekaCharges > 0;
+      const abilityCostDiscount = eurekaActive ? 5.0 : 0.0;
+      const dwDmgMult = deathWishActiveUntil > time ? 1.20 : 1.0;
+      const abilityDmgMult = (eurekaActive ? 1.10 : 1.0) * dwDmgMult;
+
+      const evalAplCondition = (cond: any): boolean => {
+        if (!cond) return true;
+        const cType = (cond.type || cond.condition_type || '').toLowerCase();
+        switch (cType) {
+          case 'always':
+            return true;
+          case 'execute_phase':
+            return isExecutePhase;
+          case 'non_execute_phase':
+            return !isExecutePhase;
+          case 'rage_above':
+          case 'rage_gte':
+            return rage >= (cond.value ?? 0);
+          case 'rage_below':
+          case 'rage_lte':
+            return rage <= (cond.value ?? 100);
+          case 'ap_above':
+          case 'ap_gte':
+            return currentAp >= (cond.value ?? 0);
+          case 'time_remaining_below':
+          case 'time_remaining_lte':
+            return (iterDuration - time) <= (cond.value ?? 0);
+          case 'bt_ww_cd':
+            return btCd > 1.0 && wwCd > 1.0;
+          case 'targets_gte':
+            return (encounter.targets || 1) >= (cond.value ?? 1);
+          case 'buff_active': {
+            const b = (cond.buff || cond.targetBuff || cond.target_buff || '').toLowerCase();
+            switch (b) {
+              case 'death_wish':
+              case 'deathwish':
+                return deathWishActiveUntil > time;
+              case 'recklessness':
+                return recklessnessActiveUntil > time;
+              case 'bloodrage':
+                return bloodrageCd > 50.0;
+              case 'mighty_rage':
+              case 'mighty_rage_potion':
+                return mightyRageActiveUntil > time;
+              case 'blood_fury':
+              case 'bloodfury':
+                return bloodFuryActiveUntil > time;
+              case 'berserking':
+                return berserkingActiveUntil > time;
+              case 'elunes_light':
+              case 'elune':
+                return elunesLightActiveUntil > time;
+              case 'eureka':
+                return eurekaActiveUntil > time && eurekaCharges > 0;
+              case 'flurry':
+                return flurryCharges > 0;
+              case 'crusader':
+                return crusaderMhActiveUntil > time || crusaderOhActiveUntil > time;
+              default:
+                return true;
+            }
+          }
+          case 'buff_inactive': {
+            const b = (cond.buff || cond.targetBuff || cond.target_buff || '').toLowerCase();
+            let isAct = false;
+            switch (b) {
+              case 'death_wish':
+              case 'deathwish':
+                isAct = deathWishActiveUntil > time;
+                break;
+              case 'recklessness':
+                isAct = recklessnessActiveUntil > time;
+                break;
+              case 'bloodrage':
+                isAct = bloodrageCd > 50.0;
+                break;
+              case 'mighty_rage':
+              case 'mighty_rage_potion':
+                isAct = mightyRageActiveUntil > time;
+                break;
+              case 'blood_fury':
+              case 'bloodfury':
+                isAct = bloodFuryActiveUntil > time;
+                break;
+              case 'berserking':
+                isAct = berserkingActiveUntil > time;
+                break;
+              case 'elunes_light':
+              case 'elune':
+                isAct = elunesLightActiveUntil > time;
+                break;
+              case 'eureka':
+                isAct = eurekaActiveUntil > time && eurekaCharges > 0;
+                break;
+              case 'flurry':
+                isAct = flurryCharges > 0;
+                break;
+              case 'crusader':
+                isAct = crusaderMhActiveUntil > time || crusaderOhActiveUntil > time;
+                break;
+              default:
+                isAct = false;
+                break;
+            }
+            return !isAct;
+          }
+          default:
+            return true;
         }
+      };
+
+      const isAplAbilityReady = (ability: string): boolean => {
+        if (!hasApl) return false;
+        return (rotation.apl || []).some(
+          (r) => r.ability === ability && r.enabled && (!r.conditions || r.conditions.length === 0 || r.conditions.every((c) => evalAplCondition(c)))
+        );
+      };
+
+      // Off-GCD abilities
+      const dwReady = hasApl
+        ? isAplAbilityReady('death_wish')
+        : (rotation.useDeathWish && time >= (rotation.deathWishTiming || 0));
+      if (dwReady && talents.deathWish && deathWishActiveUntil < time - 180 && rage >= 10) {
+        rage -= 10;
+        deathWishActiveUntil = time + 30.0;
       }
-      if (rotation.useRecklessness && recklessnessActiveUntil < time - 1800 && time >= (rotation.recklessnessTiming || 0)) {
+
+      const reckReady = hasApl
+        ? isAplAbilityReady('recklessness')
+        : (rotation.useRecklessness && time >= (rotation.recklessnessTiming || 0));
+      if (reckReady && recklessnessActiveUntil < time - 1800) {
         recklessnessActiveUntil = time + 15.0;
       }
 
+      const brReady = hasApl
+        ? isAplAbilityReady('bloodrage')
+        : (rotation.useBloodrage && rage < 80);
+      if (brReady && bloodrageCd <= 0.0) {
+        bloodrageCd = 60.0;
+        rage = Math.min(maxRage, rage + 20);
+      }
+
       // Mighty Rage Potion on pull or off-cooldown (+45-75 rage & +60 STR = 120 AP for 20s)
-      if (buffs.mightyRagePotion && mightyRageCd <= time && time >= 0) {
+      const mrReady = hasApl ? isAplAbilityReady('mighty_rage_potion') : true;
+      if (buffs.mightyRagePotion && mrReady && mightyRageCd <= time && time >= 0) {
         mightyRageCd = time + 120.0;
         mightyRageActiveUntil = time + 20.0;
         const potRage = 45 + rng.next() * 30;
@@ -638,7 +797,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       }
 
       // Active Racials (Blood Fury, Berserking, Elune's Light, Eureka!)
-      if (rotation.useRacial !== false && racialCd <= 0.0) {
+      const racialReady = hasApl ? isAplAbilityReady('racial') : (rotation.useRacial !== false);
+      if (racialReady && racialCd <= 0.0) {
         if (raceNormalized === 'orc') {
           racialCd = 120.0;
           bloodFuryActiveUntil = time + 15.0;
@@ -655,28 +815,6 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         }
       }
 
-      let currentAp = baseAp;
-      const crusaderBonus = buffs.blessingOfKings ? 220 : 200;
-      if (crusaderMhActiveUntil > time) currentAp += crusaderBonus;
-      if (crusaderOhActiveUntil > time) currentAp += crusaderBonus;
-      if (mightyRageActiveUntil > time) currentAp += buffs.blessingOfKings ? 132 : 120;
-      if (bloodFuryActiveUntil > time) currentAp *= 1.10;
-
-      let currentHaste = baseHaste;
-      if (berserkingActiveUntil > time) currentHaste += 10.0;
-      if (flurryCharges > 0) currentHaste += (talents.flurry ? talents.flurry * 6.0 : 30.0);
-      const hasteMult = 1.0 + currentHaste / 100.0;
-
-      let currentCrit = baseCrit;
-      if (elunesLightActiveUntil > time) currentCrit += 10.0;
-      if (recklessnessActiveUntil > time) currentCrit += 100.0;
-
-      // Eureka & Death Wish Damage Multipliers
-      const eurekaActive = eurekaActiveUntil > time && eurekaCharges > 0;
-      const abilityCostDiscount = eurekaActive ? 5.0 : 0.0;
-      const dwDmgMult = deathWishActiveUntil > time ? 1.20 : 1.0;
-      const abilityDmgMult = (eurekaActive ? 1.10 : 1.0) * dwDmgMult;
-
       // Proc Uptime accumulation
       if (crusaderMhActiveUntil > time) totalCrusaderMhTime += timeStep;
       if (crusaderOhActiveUntil > time) totalCrusaderOhTime += timeStep;
@@ -687,15 +825,15 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       if (eurekaActiveUntil > time) totalEurekaTime += timeStep;
       if (flurryCharges > 0) totalFlurryTime += timeStep;
 
+      // Deep Wounds tick
       if (deepWoundsTicks > 0 && time >= nextDeepWoundsTick) {
         fightDamage += deepWoundsTickDamage;
         abilityStats['Deep Wounds'].damage += deepWoundsTickDamage;
+        abilityStats['Deep Wounds'].casts++;
         abilityStats['Deep Wounds'].hits++;
         deepWoundsTicks--;
         nextDeepWoundsTick = time + 3.0;
       }
-
-      const isExecutePhase = (rotation.executePhase || rotation.useExecute) && time >= executeThresholdTime;
 
       // GCD Ability
       if (gcdTimer <= 0) {
@@ -703,29 +841,62 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         const execCost = Math.max(0, executeBaseCost - abilityCostDiscount);
         const btCost = Math.max(0, btRageCost - abilityCostDiscount);
         const wwCost = Math.max(0, wwRageCost - abilityCostDiscount);
+        const msCost = Math.max(0, 30 - abilityCostDiscount);
+        const slamCost = Math.max(0, 15 - abilityCostDiscount);
+        const hamCost = Math.max(0, 10 - abilityCostDiscount);
 
-        const poolThresh = rotation.executeRagePoolThreshold ?? 45.0;
-        const btApThresh = rotation.executeBtApThreshold ?? 2000.0;
-        const preferBt = (rotation.useBloodthirst ?? true) &&
-          (rotation.useBtInExecute ?? true) &&
-          Boolean(talents.bloodthirst) &&
-          btCd <= 0 &&
-          rage >= btCost &&
-          (currentAp >= btApThresh || rage >= poolThresh);
+        const canOverpower = overpowerAvailableUntil > time && Boolean(talents.improvedOverpower) && rage <= opMaxRage && rage >= opCost;
+        const canExecute = isExecutePhase && rage >= execCost;
+        const canBt = Boolean(talents.bloodthirst) && btCd <= 0 && rage >= btCost;
+        const canWw = wwCd <= 0 && rage >= wwCost;
+        const canMs = Boolean(talents.mortalStrike) && msCd <= 0 && rage >= msCost;
+        const canSlam = rage >= slamCost;
+        const canHamstring = rage >= hamCost;
 
-        const impaleCritMult = 2.0 + (talents.impale || 0) * 0.10;
+        let actionToCast: string | null = null;
 
-        if (
-          overpowerAvailableUntil > time &&
-          talents.improvedOverpower &&
-          rage <= opMaxRage &&
-          rage >= opCost
-        ) {
+        if (hasApl) {
+          for (const item of (rotation.apl || [])) {
+            if (!item.enabled) continue;
+            if (item.conditions && item.conditions.length > 0) {
+              if (!item.conditions.every((c) => evalAplCondition(c))) continue;
+            }
+            if (item.ability === 'overpower' && canOverpower) { actionToCast = 'overpower'; break; }
+            if (item.ability === 'execute' && canExecute) { actionToCast = 'execute'; break; }
+            if (item.ability === 'bloodthirst' && canBt) { actionToCast = 'bloodthirst'; break; }
+            if (item.ability === 'whirlwind' && canWw) { actionToCast = 'whirlwind'; break; }
+            if (item.ability === 'mortal_strike' && canMs) { actionToCast = 'mortal_strike'; break; }
+            if (item.ability === 'slam' && canSlam) { actionToCast = 'slam'; break; }
+            if (item.ability === 'hamstring' && canHamstring) { actionToCast = 'hamstring'; break; }
+          }
+        } else {
+          // Legacy GCD priority fallback
+          const poolThresh = rotation.executeRagePoolThreshold ?? 45.0;
+          const btApThresh = rotation.executeBtApThreshold ?? 2000.0;
+          const preferBt = (rotation.useBloodthirst ?? true) &&
+            (rotation.useBtInExecute ?? true) &&
+            canBt &&
+            (currentAp >= btApThresh || rage >= poolThresh);
+
+          if (canOverpower) {
+            actionToCast = 'overpower';
+          } else if (!preferBt && canExecute) {
+            actionToCast = 'execute';
+          } else if (canBt) {
+            actionToCast = 'bloodthirst';
+          } else if (canMs) {
+            actionToCast = 'mortal_strike';
+          } else if (canWw) {
+            actionToCast = 'whirlwind';
+          }
+        }
+
+        if (actionToCast === 'overpower') {
           rage = Math.min(rage, tacticalMasteryRetained);
           rage -= opCost;
           abilityStats['Overpower'].casts++;
           if (eurekaActive) eurekaCharges--;
-          const opCrit = (currentCrit + (talents.improvedOverpower * 25)) / 100.0;
+          const opCrit = (currentCrit + ((talents.improvedOverpower || 0) * 25)) / 100.0;
           const isCrit = rng.next() < opCrit;
           const avgMhDmg = (mhMinDmg + mhMaxDmg) / 2 + (currentAp / 14) * 2.4;
           let opDmg = (avgMhDmg + 35) * armorMultiplier * abilityDmgMult;
@@ -733,7 +904,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             opDmg *= impaleCritMult;
             abilityStats['Overpower'].crits++;
             flurryCharges = 3;
-            triggerDeepWounds(currentAp);
+            triggerDeepWounds(currentAp, false, abilityDmgMult);
           } else {
             abilityStats['Overpower'].hits++;
           }
@@ -748,7 +919,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           }
           overpowerAvailableUntil = -1.0;
           gcdTimer = 1.5;
-        } else if (!preferBt && isExecutePhase && rage >= execCost) {
+        } else if (actionToCast === 'execute') {
           abilityStats['Execute'].casts++;
           if (eurekaActive) eurekaCharges--;
           const roll = rng.next();
@@ -768,7 +939,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               dmg *= impaleCritMult;
               abilityStats['Execute'].crits++;
               flurryCharges = 3;
-              triggerDeepWounds(currentAp);
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
             } else {
               abilityStats['Execute'].hits++;
             }
@@ -783,7 +954,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             }
           }
           gcdTimer = 1.5;
-        } else if (talents.bloodthirst && btCd <= 0 && rage >= btCost) {
+        } else if (actionToCast === 'bloodthirst') {
           rage -= btCost;
           btCd = 6.0;
           abilityStats['Bloodthirst'].casts++;
@@ -802,7 +973,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               dmg *= impaleCritMult;
               abilityStats['Bloodthirst'].crits++;
               flurryCharges = 3;
-              triggerDeepWounds(currentAp);
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
             } else {
               abilityStats['Bloodthirst'].hits++;
             }
@@ -817,7 +988,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             }
           }
           gcdTimer = 1.5;
-        } else if (wwCd <= 0 && rage >= wwCost) {
+        } else if (actionToCast === 'whirlwind') {
           rage -= wwCost;
           wwCd = 10.0;
           abilityStats['Whirlwind'].casts++;
@@ -841,7 +1012,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               dmg *= impaleCritMult;
               abilityStats['Whirlwind'].crits++;
               flurryCharges = 3;
-              triggerDeepWounds(currentAp);
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
             } else {
               abilityStats['Whirlwind'].hits++;
             }
@@ -874,7 +1045,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
                 dmg *= impaleCritMult;
                 abilityStats['Whirlwind'].crits++;
                 flurryCharges = 3;
-                triggerDeepWounds(currentAp);
+                triggerDeepWounds(currentAp, true, abilityDmgMult);
               } else {
                 abilityStats['Whirlwind'].hits++;
               }
@@ -887,13 +1058,127 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
             }
           }
           gcdTimer = 1.5;
+        } else if (actionToCast === 'mortal_strike') {
+          rage -= msCost;
+          msCd = 6.0;
+          abilityStats['Mortal Strike'].casts++;
+          if (eurekaActive) eurekaCharges--;
+          const roll = rng.next();
+          if (roll < yellowMissChance) {
+            abilityStats['Mortal Strike'].misses++;
+          } else if (roll < yellowMissChance + yellowDodgeChance) {
+            abilityStats['Mortal Strike'].dodges++;
+            overpowerAvailableUntil = time + 5.0;
+            rage = Math.min(maxRage, rage + Math.round(msCost * 0.8));
+          } else {
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * 2.4 + 160;
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult;
+            if (isCrit) {
+              dmg *= impaleCritMult;
+              abilityStats['Mortal Strike'].crits++;
+              flurryCharges = 3;
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
+            } else {
+              abilityStats['Mortal Strike'].hits++;
+            }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+            fightDamage += dmg;
+            abilityStats['Mortal Strike'].damage += dmg;
+            checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
+            }
+          }
+          gcdTimer = 1.5;
+        } else if (actionToCast === 'slam') {
+          rage -= slamCost;
+          abilityStats['Slam'].casts++;
+          if (eurekaActive) eurekaCharges--;
+          const roll = rng.next();
+          if (roll < yellowMissChance) {
+            abilityStats['Slam'].misses++;
+          } else if (roll < yellowMissChance + yellowDodgeChance) {
+            abilityStats['Slam'].dodges++;
+            overpowerAvailableUntil = time + 5.0;
+            rage = Math.min(maxRage, rage + Math.round(slamCost * 0.8));
+          } else {
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed + 87;
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult;
+            if (isCrit) {
+              dmg *= impaleCritMult;
+              abilityStats['Slam'].crits++;
+              flurryCharges = 3;
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
+            } else {
+              abilityStats['Slam'].hits++;
+            }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+            fightDamage += dmg;
+            abilityStats['Slam'].damage += dmg;
+            checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
+            }
+          }
+          gcdTimer = 1.5;
+        } else if (actionToCast === 'hamstring') {
+          rage -= hamCost;
+          abilityStats['Hamstring'].casts++;
+          if (eurekaActive) eurekaCharges--;
+          const roll = rng.next();
+          if (roll < yellowMissChance) {
+            abilityStats['Hamstring'].misses++;
+          } else if (roll < yellowMissChance + yellowDodgeChance) {
+            abilityStats['Hamstring'].dodges++;
+            overpowerAvailableUntil = time + 5.0;
+          } else {
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            let dmg = 45.0 * armorMultiplier * abilityDmgMult;
+            if (isCrit) {
+              dmg *= impaleCritMult;
+              abilityStats['Hamstring'].crits++;
+              flurryCharges = 3;
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
+            } else {
+              abilityStats['Hamstring'].hits++;
+            }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+            fightDamage += dmg;
+            abilityStats['Hamstring'].damage += dmg;
+            checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
+            }
+          }
+          gcdTimer = 1.5;
         }
       }
 
-      // Heroic Strike
+      // Heroic Strike / Cleave Queue Decision
       let hsQueued = false;
-      if (rage >= hsThreshold && !isExecutePhase) {
-        hsQueued = true;
+      let cleaveQueued = false;
+      if (hasApl) {
+        if (isAplAbilityReady('cleave')) {
+          cleaveQueued = true;
+        } else if (isAplAbilityReady('heroic_strike')) {
+          hsQueued = true;
+        }
+      } else {
+        const hsThreshold = rotation.hsRageThreshold ?? rotation.heroicStrikeRageThreshold ?? 45;
+        const wantCleave = Boolean(rotation.useCleave) && (encounter.targets || 1) > 1;
+        if (wantCleave && rage >= hsThreshold && !isExecutePhase) {
+          cleaveQueued = true;
+        } else if (rotation.useHeroicStrike !== false && rage >= hsThreshold && !isExecutePhase) {
+          hsQueued = true;
+        }
       }
 
       // Main Hand Swing
@@ -901,7 +1186,58 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         abilityStats['Auto-Attack (MH)'].casts++;
         const hsBaseCost = 15 - (talents.improvedHeroicStrike || 0);
         const hsCost = Math.max(0, hsBaseCost - abilityCostDiscount);
-        if (hsQueued && rage >= hsCost) {
+        const cleaveBaseCost = 20 - ragingBlowsDiscount;
+        const cleaveCost = Math.max(0, cleaveBaseCost - abilityCostDiscount);
+
+        if (cleaveQueued && rage >= cleaveCost) {
+          rage -= cleaveCost;
+          abilityStats['Cleave'].casts++;
+          if (eurekaActive) eurekaCharges--;
+          const roll = rng.next();
+          if (roll < yellowMissChance) {
+            abilityStats['Cleave'].misses++;
+          } else if (roll < yellowMissChance + yellowDodgeChance) {
+            abilityStats['Cleave'].dodges++;
+            overpowerAvailableUntil = time + 5.0;
+          } else {
+            const isCrit = rng.next() < (currentCrit / 100.0);
+            const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed + 50;
+            let dmg = rawDmg * armorMultiplier * abilityDmgMult;
+            if (isCrit) {
+              dmg *= impaleCritMult;
+              abilityStats['Cleave'].crits++;
+              flurryCharges = 3;
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
+            } else {
+              abilityStats['Cleave'].hits++;
+            }
+            if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
+            fightDamage += dmg;
+            abilityStats['Cleave'].damage += dmg;
+
+            if ((encounter.targets || 1) > 1) {
+              const roll2 = rng.next();
+              if (roll2 >= yellowMissChance + yellowDodgeChance) {
+                const isCrit2 = rng.next() < (currentCrit / 100.0);
+                const rawDmg2 = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed + 50;
+                let dmg2 = rawDmg2 * armorMultiplier * abilityDmgMult;
+                if (isCrit2) {
+                  dmg2 *= impaleCritMult;
+                  triggerDeepWounds(currentAp, false, abilityDmgMult);
+                }
+                fightDamage += dmg2;
+                abilityStats['Cleave'].damage += dmg2;
+              }
+            }
+
+            checkTouchOfTheGrave();
+            if (rng.next() < (mhSpeed / 60.0)) crusaderMhActiveUntil = time + 15.0;
+            checkExtraAttackProcs(true, currentAp, currentCrit, dwDmgMult);
+            if (buffs.windfuryTotem && rng.next() < 0.20) {
+              resolveWindfuryExtraSwing(currentAp, currentCrit, dwDmgMult);
+            }
+          }
+        } else if (hsQueued && rage >= hsCost) {
           rage -= hsCost;
           abilityStats['Heroic Strike'].casts++;
           if (eurekaActive) eurekaCharges--;
@@ -919,7 +1255,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
               dmg *= impaleCritMult;
               abilityStats['Heroic Strike'].crits++;
               flurryCharges = 3;
-              triggerDeepWounds(currentAp);
+              triggerDeepWounds(currentAp, false, abilityDmgMult);
             } else {
               abilityStats['Heroic Strike'].hits++;
             }
@@ -959,7 +1295,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
           } else if (roll < critThreshold) {
             abilityStats['Auto-Attack (MH)'].crits++;
             flurryCharges = 3;
-            triggerDeepWounds(currentAp);
+            triggerDeepWounds(currentAp, false, dwDmgMult);
             const rawDmg = (mhMinDmg + rng.next() * (mhMaxDmg - mhMinDmg)) + (currentAp / 14) * mhSpeed;
             let dmg = rawDmg * armorMultiplier * 2.0 * dwDmgMult;
             if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
@@ -1020,7 +1356,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         } else if (roll < critThreshold) {
           abilityStats['Auto-Attack (OH)'].crits++;
           flurryCharges = 3;
-          triggerDeepWounds(currentAp);
+          triggerDeepWounds(currentAp, true, dwDmgMult);
           const rawDmg = ((ohMinDmg + rng.next() * (ohMaxDmg - ohMinDmg)) + (currentAp / 14) * ohSpeed) * dwSpecMult;
           let dmg = rawDmg * armorMultiplier * 2.0 * dwDmgMult;
           if (buffs.giftOfArthas) dmg += 8.0 * armorMultiplier;
@@ -1053,6 +1389,8 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       if (gcdTimer > 0) gcdTimer -= timeStep;
       if (btCd > 0) btCd -= timeStep;
       if (wwCd > 0) wwCd -= timeStep;
+      if (msCd > 0) msCd -= timeStep;
+      if (bloodrageCd > 0) bloodrageCd -= timeStep;
       if (racialCd > 0) racialCd -= timeStep;
     }
 
@@ -1081,7 +1419,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
       const dmg = a.damage / iterations;
       const dps = totalFightTime > 0 ? a.damage / totalFightTime : 0;
       const pct = totalDps > 0 ? (dps / totalDps) * 100.0 : 0;
-      const casts = Math.max(1, Math.round(a.casts / iterations));
+      const casts = Math.round(a.casts / iterations);
       return {
         name,
         totalDamage: Math.round(dmg),
@@ -1090,15 +1428,15 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
         pct: +pct.toFixed(1),
         percentage: +pct.toFixed(1),
         casts,
-        hitPct: +((a.hits / (a.casts || 1)) * 100).toFixed(1),
+        hitPct: a.casts > 0 ? +((a.hits / a.casts) * 100).toFixed(1) : 0,
         hits: Math.round(a.hits / iterations),
-        critPct: +((a.crits / (a.casts || 1)) * 100).toFixed(1),
+        critPct: a.casts > 0 ? +((a.crits / a.casts) * 100).toFixed(1) : 0,
         crits: Math.round(a.crits / iterations),
-        missPct: +((a.misses / (a.casts || 1)) * 100).toFixed(1),
+        missPct: a.casts > 0 ? +((a.misses / a.casts) * 100).toFixed(1) : 0,
         misses: Math.round(a.misses / iterations),
-        dodgePct: +((a.dodges / (a.casts || 1)) * 100).toFixed(1),
+        dodgePct: a.casts > 0 ? +((a.dodges / a.casts) * 100).toFixed(1) : 0,
         dodges: Math.round(a.dodges / iterations),
-        glancePct: +((a.glancings / (a.casts || 1)) * 100).toFixed(1),
+        glancePct: a.casts > 0 ? +((a.glancings / a.casts) * 100).toFixed(1) : 0,
         glancings: Math.round(a.glancings / iterations),
       };
     })

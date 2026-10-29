@@ -253,6 +253,14 @@ export const ENCHANTS_DATABASE: EnchantInfo[] = [
     phase: 'Phase 3',
   },
   {
+    id: 'weapon-15-strength',
+    name: 'Enchant Weapon - 15 Strength',
+    slot: 'weapon',
+    stats: { str: 15 },
+    description: '+15 Strength',
+    phase: 'Phase 5',
+  },
+  {
     id: 'weapon-superior-striking',
     name: 'Enchant Weapon - Superior Striking',
     slot: 'weapon',
@@ -266,6 +274,22 @@ export const ENCHANTS_DATABASE: EnchantInfo[] = [
     slot: 'weapon',
     stats: { procType: 'lifestealing', procPpm: 6.0 },
     description: 'Chance on hit to drain 30 life from target',
+    phase: 'Phase 1',
+  },
+  {
+    id: 'weapon-fiery',
+    name: 'Enchant Weapon - Fiery Weapon',
+    slot: 'weapon',
+    stats: { procType: 'fiery', procPpm: 6.0 },
+    description: 'Chance on hit to strike for 40 Fire damage',
+    phase: 'Phase 1',
+  },
+  {
+    id: 'weapon-icy-chill',
+    name: 'Enchant Weapon - Icy Chill',
+    slot: 'weapon',
+    stats: { procType: 'icy_chill', procPpm: 1.0 },
+    description: 'Chance on hit to afflict target with frost',
     phase: 'Phase 1',
   },
 
@@ -325,6 +349,17 @@ export function getEnchantsForSlot(slot: string): EnchantInfo[] {
       seen.add(e.id);
       return true;
     });
+  }
+  if (slot === 'offhand') {
+    return ENCHANTS_DATABASE.filter(
+      (e) =>
+        e.slot === 'offhand' ||
+        e.slot === 'weapon' ||
+        (e.slot === 'mainhand' &&
+          !e.name.toLowerCase().includes('2h') &&
+          !e.id.toLowerCase().includes('2h') &&
+          e.id !== 'iron_counterweight')
+    );
   }
   if (slot === 'twohand') {
     return ENCHANTS_DATABASE.filter(
