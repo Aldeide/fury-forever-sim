@@ -277,10 +277,51 @@ export type BuffConfig = {
   giftOfArthas?: boolean;
 } & Record<string, any>;
 
+export interface AplCondition {
+  type:
+    | 'always'
+    | 'rage_gte'
+    | 'rage_lte'
+    | 'execute_phase'
+    | 'non_execute_phase'
+    | 'ap_gte'
+    | 'targets_gte'
+    | 'time_remaining_lte'
+    | 'bt_ww_cd';
+  value?: number;
+}
+
+export interface AplActionItem {
+  id: string;
+  enabled: boolean;
+  ability:
+    | 'bloodthirst'
+    | 'whirlwind'
+    | 'execute'
+    | 'heroic_strike'
+    | 'cleave'
+    | 'overpower'
+    | 'hamstring'
+    | 'slam'
+    | 'mortal_strike'
+    | 'rend'
+    | 'death_wish'
+    | 'recklessness'
+    | 'bloodrage'
+    | 'berserker_rage'
+    | 'mighty_rage_potion'
+    | 'racial'
+    | 'trinkets'
+    | 'sapper';
+  conditions: AplCondition[];
+  note?: string;
+}
+
 /**
  * RotationConfig matching Rust sim-core (camelCase) and UI
  */
 export type RotationConfig = {
+  apl?: AplActionItem[];
   useBloodthirst?: boolean;
   bloodthirstPrio?: number;
   useWhirlwind?: boolean;

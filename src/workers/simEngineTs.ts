@@ -213,6 +213,13 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
 
   if (!buffs.windfuryTotem && (buffs.elementalSharpeningStoneMH || buffs.elementalSharpeningStoneMh)) buffCrit += 2.0;
   if (buffs.elementalSharpeningStoneOH || buffs.elementalSharpeningStoneOh) buffCrit += 2.0;
+  if (!buffs.windfuryTotem && (buffs.consecratedSharpeningStoneMH || (buffs as any).consecratedSharpeningStoneMh)) buffAp += 100;
+  if (buffs.consecratedSharpeningStoneOH || (buffs as any).consecratedSharpeningStoneOh) buffAp += 100;
+
+  let mhDmgBonus = 0;
+  let ohDmgBonus = 0;
+  if (!buffs.windfuryTotem && (buffs.denseSharpeningStoneMH || (buffs as any).denseSharpeningStoneMh)) mhDmgBonus += 8;
+  if (buffs.denseSharpeningStoneOH || (buffs as any).denseSharpeningStoneOh) ohDmgBonus += 8;
 
   // Talent contributions
   const crueltyCrit = (talents.cruelty || 0) * 1.0;
@@ -233,19 +240,23 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   const totalOhHit = +(gearOhHit + (talents.furiousPrecision ? (talents.furiousPrecision === 1 ? 4 : talents.furiousPrecision === 2 ? 7 : 10) : 0)).toFixed(2);
   const totalHaste = +(baseHaste + gearHaste + buffHaste).toFixed(2);
 
-  // Weapons check (Weapon skill racials removed in WoW: Forever)
+  // Weapons check (2H weapon in mainhand or twohand slot)
+  const isTwoHand = !!(
+    gear.twohand ||
+    (gear.mainhand && (gear.mainhand.slot === 'twohand' || (gear.mainhand as any).itemType === '2H'))
+  );
   const mh = gear.mainhand || gear.twohand || null;
-  const oh = gear.twohand ? null : gear.offhand || null;
+  const oh = isTwoHand ? null : (gear.offhand || null);
 
   const mhSkill = 300 + weaponMasterySkill + gearWeaponSkill;
   const ohSkill = 300 + weaponMasterySkill + gearWeaponSkill;
 
   const mhSpeed = mh?.speed || 2.6;
   const ohSpeed = oh?.speed || 2.6;
-  const mhMinDmg = mh?.minDmg || 80;
-  const mhMaxDmg = mh?.maxDmg || 140;
-  const ohMinDmg = oh?.minDmg || 60;
-  const ohMaxDmg = oh?.maxDmg || 110;
+  const mhMinDmg = (mh?.minDmg || 80) + mhDmgBonus;
+  const mhMaxDmg = (mh?.maxDmg || 140) + mhDmgBonus;
+  const ohMinDmg = (oh?.minDmg || 60) + ohDmgBonus;
+  const ohMaxDmg = (oh?.maxDmg || 110) + ohDmgBonus;
   const mhDps = mh?.dps || +(((mhMinDmg + mhMaxDmg) / 2) / mhSpeed).toFixed(1);
   const ohDps = oh ? (oh.dps || +(((ohMinDmg + ohMaxDmg) / 2) / ohSpeed).toFixed(1)) : 0;
 
@@ -259,13 +270,17 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
   const bossArmorRemaining = Math.max(0, baseBossArmor - bossArmorReduction - Math.round(gearArmorPen));
 
   const targetLevel = config.encounter?.bossLevel || config.encounter?.targetLevel || 63;
-  const baseSpecialMiss = mhSkill >= 305 ? 6.0 : 8.0;
+  const targetDefense = targetLevel * 5;
+  const skillDiff = targetDefense - mhSkill;
+  const baseSpecialMiss = skillDiff > 10 ? 5.0 + skillDiff * 0.2 : Math.max(0, 5.0 + skillDiff * 0.1);
   const yellowMissPct = Math.max(0, +(baseSpecialMiss - totalHit).toFixed(2));
-  const mhWhiteMissPct = Math.max(0, +(27.0 - totalHit).toFixed(2));
-  const ohWhiteMissPct = Math.max(0, +(27.0 - totalHit - (totalOhHit || 0)).toFixed(2));
-  const yellowDodgePct = Math.max(0, +(6.5 - (mhSkill - 300) * 0.1).toFixed(2));
-  const mhCritCap = Math.max(0, +(100.0 - mhWhiteMissPct - yellowDodgePct - 40.0).toFixed(2));
-  const ohCritCap = Math.max(0, +(100.0 - ohWhiteMissPct - yellowDodgePct - 40.0).toFixed(2));
+  const dwPenalty = oh ? 19.0 : 0.0;
+  const mhWhiteMissPct = Math.max(0, +(baseSpecialMiss + dwPenalty - totalHit).toFixed(2));
+  const ohWhiteMissPct = oh ? Math.max(0, +(baseSpecialMiss + 19.0 - totalHit - (totalOhHit || 0)).toFixed(2)) : 0;
+  const yellowDodgePct = Math.max(0, +(5.0 + skillDiff * 0.1).toFixed(2));
+  const glancingChance = Math.max(0, Math.min(40, 10 + (targetDefense - Math.min(300, mhSkill)) * 2));
+  const mhCritCap = Math.max(0, +(100.0 - mhWhiteMissPct - yellowDodgePct - glancingChance).toFixed(2));
+  const ohCritCap = oh ? Math.max(0, +(100.0 - ohWhiteMissPct - yellowDodgePct - glancingChance).toFixed(2)) : 0;
 
   const mhNormRage = mhSpeed * (oh ? 3.46 : 4.50);
   const ohNormRage = oh ? ohSpeed * 1.73 * (1.0 + 0.05 * (talents.dualWieldSpecialization || talents.dualWieldSpec || 0)) : 0;
@@ -295,6 +310,9 @@ export function calculateCharacterSheet(config: SimConfig = {} as SimConfig): Ch
     effectiveBossArmor: bossArmorRemaining,
     armorReductionPct,
     retainedStanceRage,
+    glancingChance,
+    dodgeChance: yellowDodgePct,
+    targetLevel,
 
     // UI Aliases
     str: totalStr,
@@ -329,7 +347,11 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
   const stats = calculateCharacterSheet(config);
   const { encounter = {}, rotation = {}, talents = {}, buffs = {} } = config;
   const duration = encounter.durationSec || encounter.duration || 60;
-  const isDualWield = (!config.gear?.twohand && !!config.gear?.offhand) || (config.items?.some((i) => i.slot === 'offhand') ?? false);
+  const isTwoHand = !!(
+    config.gear?.twohand ||
+    (config.gear?.mainhand && (config.gear.mainhand.slot === 'twohand' || (config.gear.mainhand as any).itemType === '2H'))
+  );
+  const isDualWield = !isTwoHand && (!!config.gear?.offhand || (config.items?.some((i) => i.slot === 'offhand') ?? false));
 
   const rawSeed = config.encounter?.seed && config.encounter.seed > 0
     ? config.encounter.seed
@@ -338,7 +360,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
 
   const targetLevel = encounter.bossLevel || encounter.targetLevel || 63;
   const yellowMissChance = stats.yellowMissPct / 100.0;
-  const yellowDodgeChance = Math.max(0, 6.5 - ((stats.mhSkill || 300) - 300) * 0.1) / 100.0;
+  const yellowDodgeChance = (stats.dodgeChance ?? (stats as any).yellowDodgePct ?? Math.max(0, 5.0 + ((targetLevel * 5) - (stats.mhSkill || 300)) * 0.1)) / 100.0;
 
   const mhWhiteMiss = stats.mhWhiteMissPct / 100.0;
   const ohWhiteMiss = stats.ohWhiteMissPct / 100.0;
@@ -347,7 +369,7 @@ export function simulateCombat(config: SimConfig, iterations = 2500): SimResult 
   const isUndead = raceNormalized === 'undead';
   const maxRage = raceNormalized === 'gnome' ? 105 : 100;
 
-  const glancingChance = 0.40;
+  const glancingChance = (stats.glancingChance ?? 40.0) / 100.0;
   const glancingPenalty = (stats.mhSkill || 300) >= 305 ? 0.15 : 0.35;
 
   const bossArmor = stats.effectiveBossArmor ?? stats.bossArmorRemaining ?? 3731;

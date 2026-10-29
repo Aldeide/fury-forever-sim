@@ -5,6 +5,7 @@ import {
   EnchantInfo,
   ItemQuality,
   BatchItemResult,
+  BuffConfig,
 } from '../types/sim';
 import { getWowheadIconUrl, getWowheadItemUrl } from '../utils/wowhead';
 import {
@@ -31,7 +32,9 @@ interface SlotTableProps {
   onEquipItem: (slot: EquipmentSlot, item: ItemStats) => void;
   onApplyEnchant: (slot: EquipmentSlot, enchant: EnchantInfo) => void;
   onSimulateAllInSlot: (slot: EquipmentSlot, items: ItemStats[]) => void;
-  onOpenCustomItemModal: () => void;
+  onOpenCustomItemModal?: () => void;
+  buffs?: BuffConfig;
+  onChangeBuffs?: (buffs: BuffConfig) => void;
 }
 
 const QUALITY_TEXT_COLORS: Record<ItemQuality, string> = {
@@ -56,6 +59,8 @@ export const SlotTable: React.FC<SlotTableProps> = ({
   onApplyEnchant,
   onSimulateAllInSlot,
   onOpenCustomItemModal,
+  buffs,
+  onChangeBuffs,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [phaseFilter, setPhaseFilter] = useState<string>('all');
@@ -117,6 +122,47 @@ export const SlotTable: React.FC<SlotTableProps> = ({
     selectedSlot === 'twohand' ||
     selectedSlot === 'ranged';
 
+  const isWeaponHand = selectedSlot === 'mainhand' || selectedSlot === 'offhand';
+
+  const currentStone = useMemo(() => {
+    if (!buffs) return 'none';
+    if (selectedSlot === 'mainhand') {
+      if (buffs.elementalSharpeningStoneMH || (buffs as any).elementalSharpeningStoneMh) return 'elemental';
+      if (buffs.denseSharpeningStoneMH || (buffs as any).denseSharpeningStoneMh) return 'dense';
+      if (buffs.consecratedSharpeningStoneMH || (buffs as any).consecratedSharpeningStoneMh) return 'consecrated';
+    } else if (selectedSlot === 'offhand') {
+      if (buffs.elementalSharpeningStoneOH || (buffs as any).elementalSharpeningStoneOh) return 'elemental';
+      if (buffs.denseSharpeningStoneOH || (buffs as any).denseSharpeningStoneOh) return 'dense';
+      if (buffs.consecratedSharpeningStoneOH || (buffs as any).consecratedSharpeningStoneOh) return 'consecrated';
+    }
+    return 'none';
+  }, [buffs, selectedSlot]);
+
+  const handleStoneChange = (val: string) => {
+    if (!onChangeBuffs || !buffs) return;
+    if (selectedSlot === 'mainhand') {
+      onChangeBuffs({
+        ...buffs,
+        elementalSharpeningStoneMH: val === 'elemental',
+        elementalSharpeningStoneMh: val === 'elemental',
+        denseSharpeningStoneMH: val === 'dense',
+        denseSharpeningStoneMh: val === 'dense',
+        consecratedSharpeningStoneMH: val === 'consecrated',
+        consecratedSharpeningStoneMh: val === 'consecrated',
+      });
+    } else if (selectedSlot === 'offhand') {
+      onChangeBuffs({
+        ...buffs,
+        elementalSharpeningStoneOH: val === 'elemental',
+        elementalSharpeningStoneOh: val === 'elemental',
+        denseSharpeningStoneOH: val === 'dense',
+        denseSharpeningStoneOh: val === 'dense',
+        consecratedSharpeningStoneOH: val === 'consecrated',
+        consecratedSharpeningStoneOh: val === 'consecrated',
+      });
+    }
+  };
+
   const slotTitle =
     selectedSlot === 'mainhand'
       ? 'Main Hand'
@@ -127,7 +173,7 @@ export const SlotTable: React.FC<SlotTableProps> = ({
       : selectedSlot.charAt(0).toUpperCase() + selectedSlot.slice(1);
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-hidden pl-3 bg-white text-black">
+    <div className="flex-1 flex flex-col h-full overflow-hidden pl-0 bg-white text-black">
       {/* Header Row: Slot Title & Action Buttons */}
       <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-[#dddddd]">
         <div>
@@ -153,46 +199,68 @@ export const SlotTable: React.FC<SlotTableProps> = ({
             <Zap className={`w-3.5 h-3.5 ${isSimulating ? 'animate-pulse' : 'fill-current'}`} />
             <span>{isSimulating ? 'Simulating...' : 'Batch Sim Slot'}</span>
           </button>
-
-          {/* Import / Custom Item Button */}
-          <button
-            onClick={onOpenCustomItemModal}
-            className="flex items-center space-x-1 px-3 py-1.5 rounded text-xs font-semibold border border-[#cccccc] bg-[#f8f9fa] hover:bg-[#eeeeee] text-[#333333] transition-all"
-          >
-            <PlusCircle className="w-3.5 h-3.5 text-[#1861ac]" />
-            <span>+ Import Wowhead / Custom</span>
-          </button>
         </div>
       </div>
 
-      {/* Enchant Selector Row (WrathWarrior enchants.css style) */}
-      {availableEnchants.length > 0 && (
-        <div className="flex items-center gap-3 py-2 px-3 bg-[#f8f9fa] border border-[#dddddd] rounded mb-2 text-xs">
-          <span className="font-semibold text-black shrink-0 flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-[#1861ac]" />
-            <span>Enchant:</span>
-          </span>
+      {/* Enchant & Weapon Stone Selector Row */}
+      {(availableEnchants.length > 0 || isWeaponHand) && (
+        <div className="flex flex-wrap items-center gap-3 py-2 px-3 bg-[#f8f9fa] border border-[#dddddd] rounded mb-2 text-xs">
+          {availableEnchants.length > 0 && (
+            <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+              <span className="font-semibold text-black shrink-0 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#1861ac]" />
+                <span>Enchant:</span>
+              </span>
 
-          <select
-            value={equippedEnchant?.id || ''}
-            onChange={(e) => {
-              const ench = availableEnchants.find((en) => en.id === e.target.value);
-              if (ench) onApplyEnchant(selectedSlot, ench);
-            }}
-            className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac] flex-1 max-w-sm"
-          >
-            <option value="">(No enchant applied)</option>
-            {availableEnchants.map((ench) => (
-              <option key={ench.id} value={ench.id}>
-                {ench.name} {ench.description ? `(${ench.description})` : ''}
-              </option>
-            ))}
-          </select>
+              <select
+                value={equippedEnchant?.id || ''}
+                onChange={(e) => {
+                  const ench = availableEnchants.find((en) => en.id === e.target.value);
+                  if (ench) onApplyEnchant(selectedSlot, ench);
+                }}
+                className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac] flex-1"
+              >
+                <option value="">(No enchant applied)</option>
+                {availableEnchants.map((ench) => (
+                  <option key={ench.id} value={ench.id}>
+                    {ench.name} {ench.description ? `(${ench.description})` : ''}
+                  </option>
+                ))}
+              </select>
 
-          {equippedEnchant && (
-            <span className="text-[11px] text-[#26b050] font-semibold">
-              ✓ Active
-            </span>
+              {equippedEnchant && (
+                <span className="text-[11px] text-[#26b050] font-semibold shrink-0">
+                  ✓ Active
+                </span>
+              )}
+            </div>
+          )}
+
+          {isWeaponHand && (
+            <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+              <span className="font-semibold text-black shrink-0">
+                Weapon Stone:
+              </span>
+              <select
+                value={currentStone}
+                onChange={(e) => handleStoneChange(e.target.value)}
+                className="bg-white border border-[#ced4da] rounded px-2.5 py-1 text-xs text-black focus:outline-none focus:border-[#1861ac] flex-1"
+              >
+                <option value="none">None (No Sharpening / Weightstone)</option>
+                <option value="elemental">Elemental Sharpening Stone (+2% Crit)</option>
+                <option value="dense">Dense Sharpening Stone (+8 Weapon Damage)</option>
+                <option value="consecrated">Consecrated Sharpening Stone (+100 AP vs Undead)</option>
+              </select>
+
+              {selectedSlot === 'mainhand' && buffs?.windfuryTotem && (
+                <span
+                  className="text-[10px] text-[#b33939] italic shrink-0"
+                  title="Windfury Totem temporary enchant overrides main-hand sharpening stone in raids"
+                >
+                  (Note: Windfury Totem overrides MH stone in raids)
+                </span>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   SimResult,
   CharacterSheetSummary,
@@ -6,7 +6,6 @@ import {
   TalentConfig,
   Race,
 } from '../types/sim';
-import { Swords, Play, Cpu, Sparkles } from 'lucide-react';
 import { WOW_FOREVER_RACES } from './BuffsPanel';
 
 interface StatsSidebarProps {
@@ -23,6 +22,9 @@ interface StatsSidebarProps {
   presets?: { id: string; name: string }[];
   currentPresetId?: string;
   onSelectPreset?: (presetId: string) => void;
+  onSavePreset?: (name: string) => void;
+  onDeletePreset?: (presetId: string) => void;
+  targetLevel?: number;
 }
 
 export const StatsSidebar: React.FC<StatsSidebarProps> = ({
@@ -39,7 +41,13 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   presets = [],
   currentPresetId,
   onSelectPreset,
+  onSavePreset,
+  onDeletePreset,
+  targetLevel,
 }) => {
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [newPresetName, setNewPresetName] = useState('');
+
   const mhSkill = stats.mhSkill || 300;
   const ohSkill = stats.ohSkill || 300;
   const hit = stats.mhHitPct ?? stats.hit ?? 0;
@@ -53,13 +61,17 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
   const haste = stats.hastePct ?? stats.haste ?? 0;
   const health = 1689 + Math.max(0, (sta || 350) - 20) * 10 + 20;
 
-  // Attack Table Calculations
-  const yellowMiss = stats.yellowMissPct ?? Math.max(0, +((mhSkill >= 305 ? 6.0 : 8.0) - hit).toFixed(2));
-  const mhWhiteMiss = stats.mhWhiteMissPct ?? Math.max(0, +(27.0 - hit).toFixed(2));
-  const ohWhiteMiss = stats.ohWhiteMissPct ?? Math.max(0, +(27.0 - hit - ohHit).toFixed(2));
-  const dodgeChance = 6.5;
-  const glancingChance = 40.0;
-  const mhCritCap = stats.mhCritCap ?? 45.0;
+  // Dynamic Attack Table Calculations based on targetLevel / bossLevel
+  const bossLevel = targetLevel || (stats as any).targetLevel || 63;
+  const skillDiff = bossLevel * 5 - mhSkill;
+  const baseSpecialMiss = skillDiff > 10 ? 5.0 + skillDiff * 0.2 : Math.max(0, 5.0 + skillDiff * 0.1);
+  const yellowMiss = stats.yellowMissPct ?? Math.max(0, +(baseSpecialMiss - hit).toFixed(2));
+  const mhWhiteMiss = stats.mhWhiteMissPct ?? Math.max(0, +(baseSpecialMiss + (stats.ohDps ? 19.0 : 0.0) - hit).toFixed(2));
+  const ohWhiteMiss = stats.ohWhiteMissPct ?? (stats.ohDps ? Math.max(0, +(baseSpecialMiss + 19.0 - hit - ohHit).toFixed(2)) : 0);
+  const dodgeChance = stats.dodgeChance ?? Math.max(0, +(5.0 + skillDiff * 0.1).toFixed(2));
+  const glancingChance = stats.glancingChance ?? Math.max(0, Math.min(40, 10 + (bossLevel * 5 - Math.min(300, mhSkill)) * 2));
+  const critSuppression = Math.max(0, (bossLevel - 60) * 1.0);
+  const mhCritCap = stats.mhCritCap ?? Math.max(0, +(100.0 - mhWhiteMiss - dodgeChance - glancingChance).toFixed(2));
   const critOverCap = +(crit - Number(mhCritCap)).toFixed(2);
 
   // Active race details
@@ -79,7 +91,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
           {activeRace.name} Warrior
         </h3>
         <p className="text-[11px] text-[#666666] font-mono">
-          Level 60 &bull; {engineMode === 'wasm' ? 'Rust WASM' : 'TypeScript'}
+          Level 60 Fury Warrior
         </p>
 
         {/* Preset Selector */}
@@ -96,6 +108,76 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
                 </option>
               ))}
             </select>
+
+            {/* Save & Delete Preset Controls */}
+            {isSavingPreset ? (
+              <div className="flex gap-1 mt-1.5">
+                <input
+                  type="text"
+                  placeholder="Preset name..."
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  className="flex-1 bg-white border border-[#cccccc] rounded px-1.5 py-0.5 text-xs text-black focus:outline-none focus:border-[#1861ac]"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newPresetName.trim() && onSavePreset) {
+                      onSavePreset(newPresetName.trim());
+                      setNewPresetName('');
+                      setIsSavingPreset(false);
+                    } else if (e.key === 'Escape') {
+                      setIsSavingPreset(false);
+                      setNewPresetName('');
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newPresetName.trim() && onSavePreset) {
+                      onSavePreset(newPresetName.trim());
+                      setNewPresetName('');
+                      setIsSavingPreset(false);
+                    }
+                  }}
+                  className="px-2 py-0.5 bg-[#1861ac] hover:bg-[#144e8c] text-white rounded text-xs font-semibold"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSavingPreset(false);
+                    setNewPresetName('');
+                  }}
+                  className="px-1.5 py-0.5 bg-[#eeeeee] hover:bg-[#e0e0e0] border border-[#cccccc] text-black rounded text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {onSavePreset && (
+                  <button
+                    type="button"
+                    onClick={() => setIsSavingPreset(true)}
+                    className="flex-1 py-1 px-2 rounded bg-white hover:bg-[#f0f0f0] border border-[#cccccc] text-[11px] font-semibold text-black transition-colors"
+                  >
+                    + Save Preset
+                  </button>
+                )}
+                {onDeletePreset && (
+                  <button
+                    type="button"
+                    onClick={() => currentPresetId && onDeletePreset(currentPresetId)}
+                    disabled={presets.length <= 1}
+                    title="Delete current preset"
+                    className="py-1 px-2 rounded bg-white hover:bg-red-50 border border-[#cccccc] text-[11px] font-semibold text-[#b33939] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    🗑 Delete
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -163,7 +245,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
         <div className="flex justify-between py-0.5">
           <span className="text-[#333333]">Melee Critical Chance (%)</span>
           <span className="font-bold text-black">
-            {crit.toFixed(2)}% ({Math.max(0, crit - 3.0).toFixed(2)}%)
+            {crit.toFixed(2)}% ({Math.max(0, crit - critSuppression).toFixed(2)}%)
           </span>
         </div>
         <div className="flex justify-between py-0.5">
@@ -191,7 +273,7 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
       {/* Combat Roll Table (WrathWarrior Debug Section) */}
       <div className="space-y-1 pb-3 border-b border-[#cccccc] mb-3">
         <div className="text-[11px] font-bold text-black uppercase tracking-wider mb-1">
-          Combat Roll Table (Boss 63)
+          Combat Roll Table (Target Lv {bossLevel})
         </div>
         <div className="flex justify-between py-0.5">
           <span className="text-[#555555]">Glancing Chance</span>
@@ -226,16 +308,6 @@ export const StatsSidebar: React.FC<StatsSidebarProps> = ({
             )}
           </span>
         </div>
-      </div>
-
-      {/* Active Racial Traits (WoW: Forever Oct 26-28 Ruleset) */}
-      <div className="space-y-1 pb-2">
-        <div className="text-[11px] font-bold text-black uppercase tracking-wider mb-1">
-          {activeRace.name} Racial Traits
-        </div>
-        <p className="text-[11px] text-[#444444] leading-snug">
-          {activeRace.racialsSummary}
-        </p>
       </div>
     </aside>
   );

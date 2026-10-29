@@ -1,7 +1,7 @@
 import React from 'react';
-import { EquipmentSlot, ItemStats, EnchantInfo, ItemQuality } from '../types/sim';
+import { EquipmentSlot, ItemStats, EnchantInfo } from '../types/sim';
 import { getWowheadIconUrl } from '../utils/wowhead';
-import { X, Sparkles } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface PaperDollProps {
   gear: Partial<Record<EquipmentSlot, ItemStats | null>>;
@@ -12,6 +12,8 @@ interface PaperDollProps {
   currentPresetId?: string;
   onSelectPreset?: (presetId: string) => void;
   presets?: { id: string; name: string; description?: string }[];
+  onSavePreset?: (name: string) => void;
+  onDeletePreset?: (presetId: string) => void;
 }
 
 const ALL_SLOTS: { id: EquipmentSlot; label: string }[] = [
@@ -31,19 +33,22 @@ const ALL_SLOTS: { id: EquipmentSlot; label: string }[] = [
   { id: 'trinket2', label: 'Trinket 2' },
   { id: 'mainhand', label: 'Main Hand' },
   { id: 'offhand', label: 'Off Hand' },
-  { id: 'twohand', label: 'Two-Hand' },
   { id: 'ranged', label: 'Ranged' },
 ];
 
 export const PaperDoll: React.FC<PaperDollProps> = ({
   gear,
-  enchants,
   selectedSlot,
   onSelectSlot,
   onUnequip,
 }) => {
+  const isTwoHandEquipped = !!(
+    gear.mainhand &&
+    (gear.mainhand.slot === 'twohand' || (gear.mainhand as any).itemType === '2H')
+  );
+
   return (
-    <div className="w-[190px] shrink-0 border-r border-[#dddddd] pr-2 flex flex-col h-full overflow-y-auto select-none">
+    <div className="w-full bg-white border border-[#dddddd] rounded p-2 flex flex-col h-full select-none overflow-y-auto">
       <div className="text-[11px] uppercase tracking-wider font-bold text-[#666666] px-2 mb-1.5">
         Equipment Slots
       </div>
@@ -52,27 +57,31 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
         {ALL_SLOTS.map(({ id, label }) => {
           const item = gear[id];
           const isSelected = selectedSlot === id;
+          const isOffHandDisabled = id === 'offhand' && isTwoHandEquipped;
 
           return (
             <button
               key={id}
+              disabled={isOffHandDisabled}
               onClick={() => onSelectSlot(id)}
               className={`group flex items-center justify-between px-2.5 py-1.5 rounded text-left transition-all text-xs ${
-                isSelected
+                isOffHandDisabled
+                  ? 'opacity-50 bg-[#f5f5f5] text-[#888888] cursor-not-allowed border border-dashed border-[#cccccc]'
+                  : isSelected
                   ? 'bg-[#1861ac] text-white font-medium shadow-sm'
                   : 'text-[#222222] hover:bg-[#eeeeee]'
               }`}
             >
               <div className="flex items-center space-x-2 min-w-0 pr-1">
-                {/* 22x22 Wowhead Icon Frame */}
+                {/* 20x20 Wowhead Icon Frame */}
                 <div
                   className={`w-5 h-5 rounded shrink-0 border overflow-hidden flex items-center justify-center text-[9px] ${
-                    item
+                    item && !isOffHandDisabled
                       ? 'border-[#999999] bg-black'
                       : 'border-dashed border-[#cccccc] bg-[#f9f9f9] text-[#888888]'
                   }`}
                 >
-                  {item ? (
+                  {item && !isOffHandDisabled ? (
                     <img
                       src={getWowheadIconUrl(item.icon, 'small')}
                       alt={item.name}
@@ -87,19 +96,34 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
                 </div>
 
                 <div className="min-w-0">
-                  <div className="truncate font-semibold leading-tight">{label}</div>
+                  <div className="truncate font-semibold leading-tight flex items-center gap-1.5">
+                    <span>{label}</span>
+                    {id === 'mainhand' && isTwoHandEquipped && (
+                      <span className="text-[9px] bg-[#d93025] text-white px-1 py-0.2 rounded font-mono font-bold">
+                        2H
+                      </span>
+                    )}
+                  </div>
                   <div
                     className={`text-[10px] truncate leading-tight ${
-                      isSelected ? 'text-white/80' : 'text-[#666666]'
+                      isOffHandDisabled
+                        ? 'text-[#999999] italic'
+                        : isSelected
+                        ? 'text-white/80'
+                        : 'text-[#666666]'
                     }`}
                   >
-                    {item ? item.name : 'Empty'}
+                    {isOffHandDisabled
+                      ? 'Two-Handed Equipped'
+                      : item
+                      ? item.name
+                      : 'Empty'}
                   </div>
                 </div>
               </div>
 
               {/* Quick Unequip Button */}
-              {item && (
+              {item && !isOffHandDisabled && (
                 <button
                   type="button"
                   onClick={(e) => {

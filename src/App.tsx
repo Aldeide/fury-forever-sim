@@ -12,6 +12,7 @@ import {
   StatWeightsResult,
   BatchItemResult,
   Race,
+  PresetDefinition,
 } from './types/sim';
 import { PaperDoll } from './components/PaperDoll';
 import { SlotTable } from './components/SlotTable';
@@ -21,6 +22,7 @@ import { BuffsPanel, WOW_FOREVER_RACES } from './components/BuffsPanel';
 import { RotationPanel } from './components/RotationPanel';
 import { AnalyticsPanel } from './components/AnalyticsPanel';
 import { CustomItemModal } from './components/CustomItemModal';
+import { SpellEfficiencyPanel } from './components/SpellEfficiencyPanel';
 import {
   ITEMS_DATABASE,
   getItemsForSlot,
@@ -51,11 +53,12 @@ import {
   BarChart3,
   Play,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Navigation State: 'gear' | 'settings' | 'results'
-  const [activeTab, setActiveTab] = useState<'gear' | 'settings' | 'results'>('gear');
+  // Navigation State: 'gear' | 'settings' | 'efficiency' | 'results'
+  const [activeTab, setActiveTab] = useState<'gear' | 'settings' | 'efficiency' | 'results'>('gear');
 
   // Currently selected equipment slot in Paper-Doll
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot>('mainhand');
@@ -86,8 +89,22 @@ export const App: React.FC = () => {
     return map;
   }, [allItems]);
 
+  // Custom Presets saved to localStorage
+  const [customPresets, setCustomPresets] = useState<PresetDefinition[]>(() => {
+    try {
+      const saved = localStorage.getItem('wow_forever_saved_presets');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const allPresets = useMemo(() => {
+    return [...PRESETS, ...customPresets];
+  }, [customPresets]);
+
   // Initial preset
-  const defaultPreset = PRESETS[0];
+  const defaultPreset = allPresets[0] || PRESETS[0];
 
   // Character Configuration State
   const [currentPresetId, setCurrentPresetId] = useState<string>(defaultPreset.id);
@@ -102,6 +119,11 @@ export const App: React.FC = () => {
         initialGear[slot] = getItemById(itemId) || null;
       }
     }
+    if ((defaultPreset.gear as any).twohand) {
+      const twoHandId = (defaultPreset.gear as any).twohand;
+      initialGear.mainhand = getItemById(twoHandId) || null;
+      initialGear.offhand = null;
+    }
     return initialGear;
   });
 
@@ -114,6 +136,11 @@ export const App: React.FC = () => {
       if (enchantId) {
         initialEnchants[slot] = getEnchantById(enchantId) || null;
       }
+    }
+    if ((defaultPreset.enchants as any).twohand) {
+      const twoHandEnchId = (defaultPreset.enchants as any).twohand;
+      initialEnchants.mainhand = getEnchantById(twoHandEnchId) || null;
+      initialEnchants.offhand = null;
     }
     return initialEnchants;
   });
@@ -223,7 +250,7 @@ export const App: React.FC = () => {
 
   // Load Preset
   const handleSelectPreset = (presetId: string) => {
-    const preset = PRESETS.find((p) => p.id === presetId);
+    const preset = allPresets.find((p) => p.id === presetId);
     if (!preset) return;
 
     setCurrentPresetId(preset.id);
@@ -236,6 +263,11 @@ export const App: React.FC = () => {
         newGear[slot] = allItemsMap[itemId] || getItemById(itemId) || null;
       }
     }
+    if ((preset.gear as any).twohand) {
+      const twoHandId = (preset.gear as any).twohand;
+      newGear.mainhand = allItemsMap[twoHandId] || getItemById(twoHandId) || null;
+      newGear.offhand = null;
+    }
     setGear(newGear);
 
     const newEnchants: Partial<Record<EquipmentSlot, EnchantInfo | null>> = {};
@@ -245,6 +277,11 @@ export const App: React.FC = () => {
       if (enchId) {
         newEnchants[slot] = getEnchantById(enchId) || null;
       }
+    }
+    if ((preset.enchants as any).twohand) {
+      const twoHandEnchId = (preset.enchants as any).twohand;
+      newEnchants.mainhand = getEnchantById(twoHandEnchId) || null;
+      newEnchants.offhand = null;
     }
     setEnchants(newEnchants);
 
@@ -272,6 +309,57 @@ export const App: React.FC = () => {
       });
     }
     setBatchResults({});
+  };
+
+  // Save Preset
+  const handleSavePreset = (name: string) => {
+    const gearIds: Partial<Record<EquipmentSlot, string>> = {};
+    for (const slotKey in gear) {
+      const item = gear[slotKey as EquipmentSlot];
+      if (item) gearIds[slotKey as EquipmentSlot] = item.id;
+    }
+
+    const enchantsIds: Partial<Record<EquipmentSlot, string>> = {};
+    for (const slotKey in enchants) {
+      const ench = enchants[slotKey as EquipmentSlot];
+      if (ench) enchantsIds[slotKey as EquipmentSlot] = ench.id;
+    }
+
+    const newPreset: PresetDefinition = {
+      id: `custom-${Date.now()}`,
+      name: name.trim() || `Custom Preset ${customPresets.length + 1}`,
+      description: 'Custom user-saved preset',
+      gear: gearIds,
+      enchants: enchantsIds,
+      talents,
+      buffs,
+      rotation,
+      race: String(race),
+    };
+
+    const updated = [...customPresets, newPreset];
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem('wow_forever_saved_presets', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to save preset to localStorage:', e);
+    }
+    setCurrentPresetId(newPreset.id);
+  };
+
+  // Delete Preset
+  const handleDeletePreset = (presetId: string) => {
+    const updated = customPresets.filter((p) => p.id !== presetId);
+    setCustomPresets(updated);
+    try {
+      localStorage.setItem('wow_forever_saved_presets', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Failed to delete preset from localStorage:', e);
+    }
+    const remaining = [...PRESETS, ...updated];
+    if (remaining.length > 0) {
+      handleSelectPreset(remaining[0].id);
+    }
   };
 
   // Run Main Combat Simulation
@@ -350,13 +438,36 @@ export const App: React.FC = () => {
   const handleEquipItem = (slot: EquipmentSlot, item: ItemStats) => {
     setGear((prev) => {
       const updated = { ...prev };
-      if (slot === 'twohand' || item.slot === 'twohand') {
-        updated.twohand = item;
-        updated.mainhand = null;
-        updated.offhand = null;
-      } else if (slot === 'mainhand' || slot === 'offhand') {
+      const isItemTwoHand = item.slot === 'twohand' || (item as any).itemType === '2H';
+
+      if (slot === 'mainhand') {
+        if (isItemTwoHand) {
+          updated.mainhand = item;
+          updated.twohand = null;
+          updated.offhand = null;
+          setEnchants((prevEnchants) => ({
+            ...prevEnchants,
+            offhand: null,
+          }));
+        } else {
+          updated.mainhand = item;
+          updated.twohand = null;
+        }
+      } else if (slot === 'offhand') {
+        const isMainHandTwoHand = prev.mainhand?.slot === 'twohand' || (prev.mainhand as any)?.itemType === '2H';
+        if (isMainHandTwoHand) {
+          updated.mainhand = null;
+        }
         updated.twohand = null;
-        updated[slot] = item;
+        updated.offhand = item;
+      } else if (slot === 'twohand' || isItemTwoHand) {
+        updated.mainhand = item;
+        updated.twohand = null;
+        updated.offhand = null;
+        setEnchants((prevEnchants) => ({
+          ...prevEnchants,
+          offhand: null,
+        }));
       } else {
         updated[slot] = item;
       }
@@ -472,6 +583,20 @@ export const App: React.FC = () => {
             <span className="text-[10px] uppercase font-semibold">Settings</span>
           </button>
 
+          {/* Efficiency Tab */}
+          <button
+            onClick={() => setActiveTab('efficiency')}
+            title="Spell & Ability Damage / Rage Efficiency"
+            className={`w-14 h-14 rounded flex flex-col items-center justify-center gap-1 transition-colors ${
+              activeTab === 'efficiency'
+                ? 'bg-white/25 text-white font-bold shadow-inner'
+                : 'text-[#d7d7d7] hover:bg-white/10'
+            }`}
+          >
+            <Zap className="w-5 h-5" />
+            <span className="text-[10px] uppercase font-semibold">Efficiency</span>
+          </button>
+
           {/* Results Tab */}
           <button
             onClick={() => setActiveTab('results')}
@@ -513,9 +638,12 @@ export const App: React.FC = () => {
           onSimulate={handleSimulate}
           onCalculateWeights={handleCalculateStatWeights}
           race={race}
-          presets={PRESETS}
+          presets={allPresets}
           currentPresetId={currentPresetId}
           onSelectPreset={handleSelectPreset}
+          onSavePreset={handleSavePreset}
+          onDeletePreset={handleDeletePreset}
+          targetLevel={encounter.bossLevel || encounter.targetLevel || 63}
         />
       </div>
 
@@ -523,8 +651,8 @@ export const App: React.FC = () => {
       <main className="flex-1 h-full overflow-y-auto bg-white p-6">
         {/* Tab 1: Gear (Index.razor) */}
         {activeTab === 'gear' && (
-          <div className="flex h-full gap-6">
-            <div className="w-[280px] shrink-0 h-full">
+          <div className="flex h-full gap-3">
+            <div className="w-[195px] shrink-0 h-full">
               <PaperDoll
                 gear={gear}
                 enchants={enchants}
@@ -533,7 +661,9 @@ export const App: React.FC = () => {
                 onUnequip={handleUnequip}
                 currentPresetId={currentPresetId}
                 onSelectPreset={handleSelectPreset}
-                presets={PRESETS}
+                presets={allPresets}
+                onSavePreset={handleSavePreset}
+                onDeletePreset={handleDeletePreset}
               />
             </div>
 
@@ -551,6 +681,8 @@ export const App: React.FC = () => {
                 onApplyEnchant={handleApplyEnchant}
                 onSimulateAllInSlot={handleSimulateAllInSlot}
                 onOpenCustomItemModal={() => setIsCustomModalOpen(true)}
+                buffs={buffs}
+                onChangeBuffs={setBuffs}
               />
             </div>
           </div>
@@ -637,15 +769,19 @@ export const App: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-semibold text-black block mb-1">Target Level</label>
-                  <input
-                    type="number"
+                  <select
                     value={encounter.bossLevel || encounter.targetLevel || 63}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setEncounter((prev) => ({ ...prev, bossLevel: val, targetLevel: val }));
                     }}
-                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black text-center font-mono focus:outline-none focus:border-[#1861ac]"
-                  />
+                    className="w-full bg-white border border-[#cccccc] rounded px-2.5 py-1 text-xs text-black font-mono focus:outline-none focus:border-[#1861ac]"
+                  >
+                    <option value={60}>60</option>
+                    <option value={61}>61</option>
+                    <option value={62}>62</option>
+                    <option value={63}>63 (Boss)</option>
+                  </select>
                 </div>
 
                 <div>
@@ -702,6 +838,17 @@ export const App: React.FC = () => {
               <TalentTree talents={talents} onChange={setTalents} />
             </div>
           </div>
+        )}
+
+        {/* Tab: Efficiency */}
+        {activeTab === 'efficiency' && (
+          <SpellEfficiencyPanel
+            rotation={rotation}
+            characterSheet={characterSheet}
+            simConfig={currentSimConfig}
+            race={race}
+            talents={talents}
+          />
         )}
 
         {/* Tab 3: Results (Results.razor) */}

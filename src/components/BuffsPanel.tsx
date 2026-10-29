@@ -125,26 +125,17 @@ export const WOW_FOREVER_RACES: RaceRacialDefinition[] = [
 
 export interface BuffsPanelProps {
   buffs: BuffConfig;
-  encounter: EncounterConfig;
-  race: Race;
+  encounter?: EncounterConfig;
+  race?: Race;
   onBuffChange: (buffs: BuffConfig) => void;
-  onEncounterChange: (encounter: EncounterConfig) => void;
-  onRaceChange: (race: Race) => void;
+  onEncounterChange?: (encounter: EncounterConfig) => void;
+  onRaceChange?: (race: Race) => void;
 }
 
 export const BuffsPanel: React.FC<BuffsPanelProps> = ({
   buffs,
-  encounter,
-  race,
   onBuffChange,
-  onEncounterChange,
-  onRaceChange,
 }) => {
-  const normalizedRaceKey = String(race).toLowerCase().replace(/[^a-z]/g, '');
-  const activeRaceInfo =
-    WOW_FOREVER_RACES.find((r) => r.id.toLowerCase().replace(/[^a-z]/g, '') === normalizedRaceKey) ||
-    WOW_FOREVER_RACES[0];
-
   const toggleBuff = (buff: BuffDefinition) => {
     if (buff.type === 'number') {
       const current = Number(buffs[buff.id] || 0);
@@ -171,7 +162,7 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
   const selectAllRaidBuffsAndConsumes = () => {
     const updated = { ...buffs };
     BUFFS_DATABASE.filter(
-      (b) => b.category === 'raid' || b.category === 'consumable' || b.category === 'weapon'
+      (b) => b.category === 'raid' || b.category === 'consumable' || b.id === 'windfuryTotem'
     ).forEach((b) => {
       if (b.type === 'number') {
         updated[b.id] = b.max || 5;
@@ -199,13 +190,25 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
   };
 
   const categories: Array<{
-    id: 'raid' | 'debuff' | 'weapon' | 'consumable';
+    id: 'raid' | 'debuff' | 'consumable';
     title: string;
+    filter: (b: BuffDefinition) => boolean;
   }> = [
-    { id: 'raid', title: 'Raid Auras & Party Totems' },
-    { id: 'debuff', title: 'Boss Armor Debuffs' },
-    { id: 'weapon', title: 'Weapon Enhancements' },
-    { id: 'consumable', title: 'Consumables & Elixirs' },
+    {
+      id: 'raid',
+      title: 'Raid Auras & Party Totems',
+      filter: (b) => b.category === 'raid' || b.id === 'windfuryTotem',
+    },
+    {
+      id: 'debuff',
+      title: 'Boss Armor Debuffs',
+      filter: (b) => b.category === 'debuff',
+    },
+    {
+      id: 'consumable',
+      title: 'Consumables & Elixirs',
+      filter: (b) => b.category === 'consumable',
+    },
   ];
 
   return (
@@ -233,76 +236,10 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
         </div>
       </div>
 
-      {/* Race & Encounter Settings Bar */}
-      <div className="bg-[#f9f9f9] border border-[#dddddd] p-3 rounded mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-        <div>
-          <label className="font-bold text-black uppercase tracking-wider text-[11px] block mb-1">
-            Character Race
-          </label>
-          <select
-            value={activeRaceInfo.id}
-            onChange={(e) => onRaceChange(e.target.value as Race)}
-            className="w-full bg-white border border-[#cccccc] text-black text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1861ac]"
-          >
-            {WOW_FOREVER_RACES.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name} ({r.faction}) — {r.keyPerk}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <label className="font-bold text-black uppercase tracking-wider text-[11px]">
-              Fight Duration
-            </label>
-            <span className="font-mono font-semibold text-[#1861ac]">
-              {encounter.duration || encounter.durationSec || 60} seconds
-            </span>
-          </div>
-          <input
-            type="range"
-            min={20}
-            max={180}
-            step={5}
-            value={encounter.duration || encounter.durationSec || 60}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              onEncounterChange({ ...encounter, duration: val, durationSec: val });
-            }}
-            className="w-full cursor-pointer mt-1"
-          />
-        </div>
-
-        <div>
-          <label className="font-bold text-black uppercase tracking-wider text-[11px] block mb-1">
-            Boss Target Level
-          </label>
-          <select
-            value={encounter.targetLevel || encounter.bossLevel || 63}
-            onChange={(e) => {
-              const lvl = Number(e.target.value);
-              onEncounterChange({ ...encounter, targetLevel: lvl, bossLevel: lvl });
-            }}
-            className="w-full bg-white border border-[#cccccc] text-black text-xs rounded px-2.5 py-1.5 focus:outline-none focus:border-[#1861ac]"
-          >
-            <option value={63}>Level 63 - Raid Boss (+3 Level Defense)</option>
-            <option value={62}>Level 62 - High Dungeon Boss</option>
-            <option value={60}>Level 60 - Target Dummy</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="text-[11px] text-[#555555] mb-4 px-1">
-        <span className="font-bold text-black">{activeRaceInfo.name} Racials:</span>{' '}
-        {activeRaceInfo.racialsSummary}
-      </div>
-
-      {/* Categorized Buff Columns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 flex-1">
+      {/* Categorized Buff Columns (3 Clean Columns) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
         {categories.map((cat) => {
-          const items = BUFFS_DATABASE.filter((b) => b.category === cat.id);
+          const items = BUFFS_DATABASE.filter(cat.filter);
           const activeCount = items.filter((b) => !!buffs[b.id]).length;
 
           return (

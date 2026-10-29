@@ -122,8 +122,14 @@ pub struct BuffConfig {
     pub roids: bool,                // +25 Str (Ground Scorpok Assay)
     pub elemental_sharpening_stone_mh: bool, // +2% crit
     pub elemental_sharpening_stone_oh: bool, // +2% crit
+    #[serde(alias = "denseSharpeningStoneMH", alias = "denseSharpeningStoneMh", default)]
     pub dense_weightstone_mh: bool, // +8 weapon dmg
+    #[serde(alias = "denseSharpeningStoneOH", alias = "denseSharpeningStoneOh", default)]
     pub dense_weightstone_oh: bool, // +8 weapon dmg
+    #[serde(alias = "consecratedSharpeningStoneMH", alias = "consecratedSharpeningStoneMh", default)]
+    pub consecrated_sharpening_stone_mh: bool,
+    #[serde(alias = "consecratedSharpeningStoneOH", alias = "consecratedSharpeningStoneOh", default)]
+    pub consecrated_sharpening_stone_oh: bool,
     pub mighty_rage_potion: bool,   // +60 rage & +60 Str for 20s during Execute / Death Wish
     #[serde(deserialize_with = "deserialize_bool_or_number", default)]
     pub sunder_armor: bool,         // -2250 boss armor

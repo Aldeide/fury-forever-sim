@@ -315,10 +315,16 @@ export function getEnchantById(id: string): EnchantInfo | undefined {
 }
 
 export function getEnchantsForSlot(slot: string): EnchantInfo[] {
-  if (slot === 'mainhand' || slot === 'offhand') {
-    return ENCHANTS_DATABASE.filter(
-      (e) => e.slot === 'weapon' || e.slot === slot
+  if (slot === 'mainhand') {
+    const list = ENCHANTS_DATABASE.filter(
+      (e) => e.slot === 'weapon' || e.slot === 'mainhand' || e.slot === 'twohand'
     );
+    const seen = new Set<string>();
+    return list.filter((e) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    });
   }
   if (slot === 'twohand') {
     return ENCHANTS_DATABASE.filter(

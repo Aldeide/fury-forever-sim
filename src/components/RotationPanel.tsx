@@ -1,18 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import {
   RotationConfig,
-  SimConfig,
+  AplActionItem,
+  AplCondition,
   CharacterSheetSummary,
+  SimConfig,
   Race,
   TalentConfig,
 } from '../types/sim';
-import {
-  analyzeSpellPriorities,
-  DEFAULT_COMBAT_BUFF_TOGGLES,
-  PRIORITY_PRESET_PROFILES,
-  CombatBuffToggles,
-} from '../utils/spellAnalyzer';
-import { runSimulation } from '../workers/simRunner';
 import { getAbilityIconUrl } from '../utils/wowhead';
 
 export interface RotationPanelProps {
@@ -24,126 +19,151 @@ export interface RotationPanelProps {
   talents?: TalentConfig;
 }
 
-interface RankedProfile {
-  id: string;
-  name: string;
-  description: string;
-  rotation: RotationConfig;
-  simDps?: number;
-  dpsDelta?: number;
-}
+const DEFAULT_FURY_APL: AplActionItem[] = [
+  { id: '1', enabled: true, ability: 'death_wish', conditions: [{ type: 'time_remaining_lte', value: 30 }] },
+  { id: '2', enabled: true, ability: 'recklessness', conditions: [{ type: 'time_remaining_lte', value: 15 }] },
+  { id: '3', enabled: true, ability: 'bloodrage', conditions: [{ type: 'always' }] },
+  { id: '4', enabled: true, ability: 'mighty_rage_potion', conditions: [{ type: 'execute_phase' }] },
+  { id: '5', enabled: true, ability: 'bloodthirst', conditions: [{ type: 'always' }] },
+  { id: '6', enabled: true, ability: 'whirlwind', conditions: [{ type: 'always' }] },
+  { id: '7', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }] },
+  { id: '8', enabled: true, ability: 'overpower', conditions: [{ type: 'rage_lte', value: 35 }] },
+  { id: '9', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'rage_gte', value: 45 }] },
+];
 
-export const RotationPanel: React.FC<RotationPanelProps> = ({
-  rotation,
-  onChange,
-  characterSheet,
-  simConfig,
-  race = 'orc',
-  talents = {},
-}) => {
+const DEFAULT_ARMS_APL: AplActionItem[] = [
+  { id: 'a1', enabled: true, ability: 'death_wish', conditions: [{ type: 'time_remaining_lte', value: 30 }] },
+  { id: 'a2', enabled: true, ability: 'bloodrage', conditions: [{ type: 'always' }] },
+  { id: 'a3', enabled: true, ability: 'mortal_strike', conditions: [{ type: 'always' }] },
+  { id: 'a4', enabled: true, ability: 'whirlwind', conditions: [{ type: 'always' }] },
+  { id: 'a5', enabled: true, ability: 'overpower', conditions: [{ type: 'rage_lte', value: 40 }] },
+  { id: 'a6', enabled: true, ability: 'execute', conditions: [{ type: 'execute_phase' }] },
+  { id: 'a7', enabled: true, ability: 'slam', conditions: [{ type: 'bt_ww_cd' }] },
+  { id: 'a8', enabled: true, ability: 'heroic_strike', conditions: [{ type: 'rage_gte', value: 50 }] },
+];
+
+const APL_ABILITIES: Array<{ value: AplActionItem['ability']; label: string }> = [
+  { value: 'bloodthirst', label: 'Bloodthirst' },
+  { value: 'whirlwind', label: 'Whirlwind' },
+  { value: 'execute', label: 'Execute' },
+  { value: 'heroic_strike', label: 'Heroic Strike' },
+  { value: 'cleave', label: 'Cleave' },
+  { value: 'overpower', label: 'Overpower' },
+  { value: 'hamstring', label: 'Hamstring' },
+  { value: 'slam', label: 'Slam' },
+  { value: 'mortal_strike', label: 'Mortal Strike' },
+  { value: 'death_wish', label: 'Death Wish' },
+  { value: 'recklessness', label: 'Recklessness' },
+  { value: 'bloodrage', label: 'Bloodrage' },
+  { value: 'mighty_rage_potion', label: 'Mighty Rage Potion' },
+  { value: 'racial', label: 'Racial Cooldown' },
+  { value: 'trinkets', label: 'Trinkets' },
+];
+
+const COND_LABELS: Record<string, string> = {
+  always: 'Always',
+  rage_gte: 'Rage ≥',
+  rage_lte: 'Rage ≤',
+  execute_phase: '<20% HP',
+  non_execute_phase: '≥20% HP',
+  ap_gte: 'AP ≥',
+  time_remaining_lte: 'Time ≤',
+  bt_ww_cd: 'BT/WW on CD',
+};
+
+export const RotationPanel: React.FC<RotationPanelProps> = ({ rotation, onChange }) => {
+  const apl = rotation.apl || DEFAULT_FURY_APL;
+
   const updateField = <K extends keyof RotationConfig>(key: K, value: RotationConfig[K]) => {
     onChange({ ...rotation, [key]: value });
   };
 
-  // Dynamic Combat Buff Inspector State ("What-If" Procs & Cooldowns)
-  const [combatBuffs, setCombatBuffs] = useState<CombatBuffToggles>(DEFAULT_COMBAT_BUFF_TOGGLES);
-  const toggleCombatBuff = (key: keyof CombatBuffToggles) => {
-    setCombatBuffs((prev) => ({ ...prev, [key]: !prev[key] }));
+  const syncApl = (newApl: AplActionItem[]) => {
+    const updated: RotationConfig = { ...rotation, apl: newApl };
+    const has = (ab: AplActionItem['ability']) => newApl.some((a) => a.ability === ab && a.enabled);
+    updated.useBloodthirst = has('bloodthirst');
+    updated.useWhirlwind = has('whirlwind');
+    updated.useHeroicStrike = has('heroic_strike');
+    updated.useExecute = has('execute');
+    updated.executePhase = has('execute');
+    updated.useOverpower = has('overpower');
+    updated.useHamstring = has('hamstring');
+    updated.useDeathWish = has('death_wish');
+    updated.useRecklessness = has('recklessness');
+    updated.useBloodrage = has('bloodrage');
+    updated.useMightyRagePotion = has('mighty_rage_potion');
+
+    for (const item of newApl) {
+      if (!item.enabled) continue;
+      if (item.ability === 'bloodthirst') {
+        const apCond = item.conditions.find((c) => c.type === 'ap_gte');
+        if (apCond) {
+          updated.useBtInExecute = true;
+          if (apCond.value !== undefined) updated.executeBtApThreshold = apCond.value;
+        }
+      } else if (item.ability === 'heroic_strike') {
+        const rCond = item.conditions.find((c) => c.type === 'rage_gte');
+        if (rCond?.value !== undefined) {
+          updated.hsRageThreshold = rCond.value;
+          updated.heroicStrikeRageThreshold = rCond.value;
+        }
+      } else if (item.ability === 'overpower') {
+        const rCond = item.conditions.find((c) => c.type === 'rage_lte');
+        if (rCond?.value !== undefined) {
+          updated.overpowerMaxRage = rCond.value;
+          updated.overpowerRageThreshold = rCond.value;
+        }
+      } else if (item.ability === 'hamstring') {
+        const rCond = item.conditions.find((c) => c.type === 'rage_gte');
+        if (rCond?.value !== undefined) updated.hamstringRageThreshold = rCond.value;
+      }
+    }
+    onChange(updated);
   };
 
-  const normalizedRace = String(race || 'orc').toLowerCase();
-  const isOrc = normalizedRace.includes('orc');
-  const isTroll = normalizedRace.includes('troll');
-  const isNightElf = normalizedRace.includes('night');
-  const isGnome = normalizedRace.includes('gnome');
-  const racialName = isOrc ? 'Blood Fury' : isTroll ? 'Berserking' : isNightElf ? "Elune's Light" : isGnome ? 'Eureka!' : 'Racial Cooldown';
+  const addRow = () => syncApl([...apl, { id: String(Date.now()), enabled: true, ability: 'heroic_strike', conditions: [{ type: 'always' }] }]);
+  const toggleRow = (idx: number) => { const n = [...apl]; n[idx] = { ...n[idx], enabled: !n[idx].enabled }; syncApl(n); };
+  const changeAbility = (idx: number, ability: AplActionItem['ability']) => { const n = [...apl]; n[idx] = { ...n[idx], ability }; syncApl(n); };
+  const moveRow = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= apl.length) return;
+    const n = [...apl];
+    const temp = n[idx];
+    n[idx] = n[target];
+    n[target] = temp;
+    syncApl(n);
+  };
+  const deleteRow = (idx: number) => syncApl(apl.filter((_, i) => i !== idx));
 
-  const PROCS_CONFIG: { key: keyof CombatBuffToggles; label: string; ability: string }[] = [
-    { key: 'crusaderMh', label: 'Crusader MH', ability: 'Crusader (MH)' },
-    { key: 'crusaderOh', label: 'Crusader OH', ability: 'Crusader (OH)' },
-    { key: 'deathWish', label: 'Death Wish', ability: 'Death Wish' },
-    { key: 'enrage', label: 'Enrage', ability: 'Enrage' },
-    { key: 'recklessness', label: 'Recklessness', ability: 'Recklessness' },
-    { key: 'racialActive', label: 'Racial Cooldown', ability: racialName },
-    { key: 'trinketProc', label: 'Trinket Proc', ability: 'Earthstrike' },
-    { key: 'mightyRagePot', label: 'Mighty Rage Pot', ability: 'Mighty Rage Potion' },
-    { key: 'flurry', label: 'Flurry', ability: 'Flurry' },
-    { key: 'executePhase', label: 'Execute Phase', ability: 'Execute' },
-  ];
+  const addCondition = (idx: number, type: AplCondition['type']) => {
+    if (!type) return;
+    const defaultVal = type.includes('rage') ? 45 : type === 'ap_gte' ? 2000 : type === 'time_remaining_lte' ? 30 : undefined;
+    const n = [...apl];
+    n[idx] = { ...n[idx], conditions: [...n[idx].conditions, { type, value: defaultVal }] };
+    syncApl(n);
+  };
 
-  const effectiveSimConfig: SimConfig = useMemo(() => {
-    return {
-      race: race || 'orc',
-      talents: talents || {},
-      gear: {},
-      buffs: {},
-      encounter: { duration: 60, targetLevel: 63, bossLevel: 63, targets: 1 },
-      ...(simConfig || {}),
-      rotation,
-    };
-  }, [simConfig, rotation, race, talents]);
+  const updateCondValue = (idx: number, cIdx: number, val: number) => {
+    const n = [...apl];
+    const conds = [...n[idx].conditions];
+    conds[cIdx] = { ...conds[cIdx], value: val };
+    n[idx] = { ...n[idx], conditions: conds };
+    syncApl(n);
+  };
 
-  const report = useMemo(() => {
-    try {
-      return analyzeSpellPriorities(effectiveSimConfig, combatBuffs);
-    } catch (err) {
-      console.error('analyzeSpellPriorities error:', err);
-      return null;
-    }
-  }, [effectiveSimConfig, combatBuffs]);
-
-  const baselineAp = report?.baselineAp ?? characterSheet?.totalAp ?? characterSheet?.ap ?? 1650;
-  const activeAp = report?.buffedAp ?? baselineAp;
-  const deltaAp = activeAp - baselineAp;
-  const deltaApPct = baselineAp > 0 ? (deltaAp / baselineAp) * 100 : 0;
-  const impExecuteRank = talents?.improvedExecute !== undefined ? talents.improvedExecute : 2;
-  const btBreakpoint = impExecuteRank === 2 ? 2000 : 1833;
-
-  // Batch Priority Simulation
-  const [profiles, setProfiles] = useState<RankedProfile[]>(() => PRIORITY_PRESET_PROFILES.map((p) => ({ ...p })));
-  const [isBatchRunning, setIsBatchRunning] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
-
-  const handleRunBatchProfiles = async () => {
-    if (!simConfig) {
-      alert('Simulation configuration is not ready. Please verify gear & buffs.');
-      return;
-    }
-    setIsBatchRunning(true);
-    setBatchProgress({ current: 0, total: PRIORITY_PRESET_PROFILES.length });
-    try {
-      const baseResult = await runSimulation(simConfig, 1200);
-      const baselineSimDps = baseResult.meanDps || baseResult.dps || 1000;
-      const updated: RankedProfile[] = [];
-      for (let i = 0; i < PRIORITY_PRESET_PROFILES.length; i++) {
-        const p = PRIORITY_PRESET_PROFILES[i];
-        setBatchProgress({ current: i + 1, total: PRIORITY_PRESET_PROFILES.length });
-        const testConfig: SimConfig = {
-          ...simConfig,
-          rotation: { ...simConfig.rotation, ...p.rotation },
-          iterations: 1200,
-        };
-        const res = await runSimulation(testConfig, 1200);
-        const dps = res.meanDps || res.dps || 0;
-        updated.push({ ...p, simDps: +dps.toFixed(1), dpsDelta: +(dps - baselineSimDps).toFixed(1) });
-      }
-      updated.sort((a, b) => (b.simDps || 0) - (a.simDps || 0));
-      setProfiles(updated);
-    } catch (err) {
-      console.error('Batch priority simulation failed:', err);
-    } finally {
-      setIsBatchRunning(false);
-      setBatchProgress(null);
-    }
+  const removeCondition = (idx: number, cIdx: number) => {
+    const n = [...apl];
+    n[idx] = { ...n[idx], conditions: n[idx].conditions.filter((_, i) => i !== cIdx) };
+    syncApl(n);
   };
 
   return (
-    <div className="bg-[#ffffff] text-[#000000] p-4 flex flex-col space-y-6 overflow-y-auto h-full">
+    <div className="bg-white text-black p-4 flex flex-col space-y-6 overflow-y-auto h-full">
       {/* 1. TOP SECTION — Rotation & Cooldowns */}
       <section className="space-y-3">
-        <div className="border-b border-[#000000] pb-1.5 flex items-center justify-between">
-          <h2 className="text-sm font-bold tracking-tight uppercase text-[#000000]">Rotation & Cooldown Settings</h2>
-          <span className="text-[11px] text-[#555555]">Configure ability usage rules & rage pooling thresholds</span>
+        <div className="border-b border-black pb-1.5 flex items-center justify-between">
+          <h2 className="text-sm font-bold tracking-tight uppercase text-black">Rotation &amp; Cooldown Settings</h2>
+          <span className="text-[11px] text-[#555555]">Configure ability usage rules &amp; rage pooling thresholds</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 text-xs">
@@ -152,7 +172,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.useBloodthirst !== false} onChange={(e) => updateField('useBloodthirst', e.target.checked)} className="w-4 h-4 text-[#1861ac] mt-2.5 cursor-pointer" />
             <img src={getAbilityIconUrl('Bloodthirst', 'large')} alt="Bloodthirst" className={`ww-icon-40 shrink-0 ${rotation.useBloodthirst !== false ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Bloodthirst <span className="font-normal text-[#555555]">(Cast on cooldown)</span></div>
+              <div className="font-semibold text-black">Bloodthirst <span className="font-normal text-[#555555]">(Cast on cooldown)</span></div>
               <div className="flex items-center flex-wrap gap-1 mt-1 text-[#333333]">
                 <span>In Execute phase:</span>
                 <label className="flex items-center space-x-1 cursor-pointer">
@@ -171,7 +191,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.useWhirlwind !== false} onChange={(e) => updateField('useWhirlwind', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Whirlwind', 'large')} alt="Whirlwind" className={`ww-icon-40 shrink-0 ${rotation.useWhirlwind !== false ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Whirlwind</div>
+              <div className="font-semibold text-black">Whirlwind</div>
               <div className="text-[#555555]">Cast on cooldown (fill between Bloodthirst GCDs)</div>
             </div>
           </div>
@@ -181,11 +201,11 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.useHeroicStrike !== false} onChange={(e) => updateField('useHeroicStrike', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Heroic Strike', 'large')} alt="Heroic Strike" className={`ww-icon-40 shrink-0 ${rotation.useHeroicStrike !== false ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Heroic Strike</div>
+              <div className="font-semibold text-black">Heroic Strike</div>
               <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
                 <span>Queue over</span>
                 <input type="number" className="ww-inline-input" value={rotation.hsRageThreshold ?? rotation.heroicStrikeRageThreshold ?? 45} onChange={(e) => { const v = +e.target.value; onChange({ ...rotation, hsRageThreshold: v, heroicStrikeRageThreshold: v }); }} />
-                <span>rage (off-GCD rage dump & anti-glance aura)</span>
+                <span>rage (off-GCD rage dump)</span>
               </div>
             </div>
           </div>
@@ -195,7 +215,7 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.executePhase !== false && rotation.useExecute !== false} onChange={(e) => onChange({ ...rotation, executePhase: e.target.checked, useExecute: e.target.checked })} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Execute', 'large')} alt="Execute" className={`ww-icon-40 shrink-0 ${(rotation.executePhase !== false && rotation.useExecute !== false) ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Execute</div>
+              <div className="font-semibold text-black">Execute</div>
               <div className="text-[#555555]">Cast in Execute phase (&lt;20% boss HP)</div>
             </div>
           </div>
@@ -205,9 +225,9 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={!!rotation.useOverpower} onChange={(e) => updateField('useOverpower', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Overpower', 'large')} alt="Overpower" className={`ww-icon-40 shrink-0 ${rotation.useOverpower ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Overpower</div>
+              <div className="font-semibold text-black">Overpower</div>
               <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Weave in Battle Stance at or below</span>
+                <span>Weave in Battle Stance &le;</span>
                 <input type="number" className="ww-inline-input" value={rotation.overpowerMaxRage ?? rotation.overpowerRageThreshold ?? 35} onChange={(e) => { const v = +e.target.value; onChange({ ...rotation, overpowerMaxRage: v, overpowerRageThreshold: v }); }} />
                 <span>rage</span>
               </div>
@@ -219,9 +239,9 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={!!rotation.useHamstring} onChange={(e) => updateField('useHamstring', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Hamstring', 'large')} alt="Hamstring" className={`ww-icon-40 shrink-0 ${rotation.useHamstring ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Hamstring</div>
+              <div className="font-semibold text-black">Hamstring</div>
               <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
-                <span>Windfury / proc fishing over</span>
+                <span>Windfury / proc fishing &gt;</span>
                 <input type="number" className="ww-inline-input" value={rotation.hamstringRageThreshold ?? 70} onChange={(e) => updateField('hamstringRageThreshold', +e.target.value)} />
                 <span>rage</span>
               </div>
@@ -233,11 +253,11 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.useDeathWish !== false} onChange={(e) => updateField('useDeathWish', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Death Wish', 'large')} alt="Death Wish" className={`ww-icon-40 shrink-0 ${rotation.useDeathWish !== false ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Death Wish</div>
+              <div className="font-semibold text-black">Death Wish</div>
               <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
                 <span>Activate in last</span>
                 <input type="number" className="ww-inline-input" value={rotation.deathWishTiming ?? 30} onChange={(e) => updateField('deathWishTiming', +e.target.value)} />
-                <span>sec (+20% physical damage)</span>
+                <span>sec (+20% damage)</span>
               </div>
             </div>
           </div>
@@ -247,22 +267,12 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <input type="checkbox" checked={rotation.useRecklessness !== false} onChange={(e) => updateField('useRecklessness', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
             <img src={getAbilityIconUrl('Recklessness', 'large')} alt="Recklessness" className={`ww-icon-40 shrink-0 ${rotation.useRecklessness !== false ? '' : 'ww-grayscale'}`} />
             <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Recklessness</div>
+              <div className="font-semibold text-black">Recklessness</div>
               <div className="flex items-center space-x-1 mt-0.5 text-[#333333]">
                 <span>Activate in last</span>
                 <input type="number" className="ww-inline-input" value={rotation.recklessnessTiming ?? 15} onChange={(e) => updateField('recklessnessTiming', +e.target.value)} />
-                <span>sec (+100% critical strike chance)</span>
+                <span>sec (+100% crit)</span>
               </div>
-            </div>
-          </div>
-
-          {/* Racial Cooldown */}
-          <div className="flex items-center space-x-2.5 p-2 bg-white border border-[#dddddd] rounded">
-            <input type="checkbox" checked={rotation.useRacial !== false} onChange={(e) => updateField('useRacial', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
-            <img src={getAbilityIconUrl(racialName, 'large')} alt="Racial" className={`ww-icon-40 shrink-0 ${rotation.useRacial !== false ? '' : 'ww-grayscale'}`} />
-            <div className="flex-1 leading-snug">
-              <div className="font-semibold text-[#000000]">Racial Cooldown</div>
-              <div className="text-[#555555]">Use active racial ({racialName})</div>
             </div>
           </div>
 
@@ -271,161 +281,90 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
             <div className="flex items-center space-x-2">
               <input type="checkbox" checked={rotation.useBloodrage !== false} onChange={(e) => updateField('useBloodrage', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
               <img src={getAbilityIconUrl('Bloodrage', 'large')} alt="Bloodrage" className={`ww-icon-40 shrink-0 ${rotation.useBloodrage !== false ? '' : 'ww-grayscale'}`} />
-              <span className="font-semibold text-[#000000]">Bloodrage</span>
+              <span className="font-semibold text-black">Bloodrage</span>
             </div>
             <div className="flex items-center space-x-2">
               <input type="checkbox" checked={!!rotation.useMightyRagePotion} onChange={(e) => updateField('useMightyRagePotion', e.target.checked)} className="w-4 h-4 text-[#1861ac] cursor-pointer" />
               <img src={getAbilityIconUrl('Mighty Rage Potion', 'large')} alt="Mighty Rage Potion" className={`ww-icon-40 shrink-0 ${rotation.useMightyRagePotion ? '' : 'ww-grayscale'}`} />
-              <span className="font-semibold text-[#000000]">Mighty Rage Pot</span>
+              <span className="font-semibold text-black">Mighty Rage Pot</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 2. SECTION 2 — Dynamic Combat State Inspector */}
+      {/* 2. BOTTOM SECTION — APL (Action Priority List) */}
       <section className="space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-[#000000] pb-1.5">
+        <div className="border-b border-black pb-1.5 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-bold tracking-tight uppercase text-[#000000]">Dynamic Combat State Inspector ("What-If" Procs & Cooldowns)</h2>
-            <div className="text-[11px] text-[#555555]">Toggle active procs to inspect dynamic AP scaling and priority breakpoints in real-time</div>
+            <h2 className="text-sm font-bold tracking-tight uppercase text-black">APL — Action Priority List (WoWSims Style)</h2>
+            <div className="text-[11px] text-[#555555]">Priority-ordered decision tree evaluated every GCD &amp; swing update</div>
           </div>
-          <div className="flex items-center space-x-2 text-xs bg-[#eeeeee] px-3 py-1 rounded border border-[#cccccc]">
-            <div><span className="text-[#666666]">Baseline AP:</span> <strong className="text-[#000000]">{baselineAp}</strong></div>
-            <div className="text-[#999999]">|</div>
-            <div><span className="text-[#666666]">Active AP:</span> <strong className="text-[#1861ac]">{activeAp}</strong></div>
-            <span className={`font-semibold ${deltaAp >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-              ({deltaAp >= 0 ? `+${deltaAp}` : deltaAp} AP, {deltaAp >= 0 ? `+${deltaApPct.toFixed(1)}%` : `${deltaApPct.toFixed(1)}%`})
-            </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => syncApl(DEFAULT_FURY_APL)} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">Default Fury (DW)</button>
+            <button onClick={() => syncApl(DEFAULT_ARMS_APL)} className="px-2.5 py-1 text-xs font-semibold rounded bg-white hover:bg-[#f5f5f5] text-black border border-[#cccccc] shadow-sm">2H Arms / Fury</button>
+            <button onClick={addRow} className="px-2.5 py-1 text-xs font-semibold rounded bg-[#1861ac] hover:bg-[#144e8c] text-white shadow-sm">+ Add Action Row</button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 p-3 bg-white border border-[#dddddd] rounded">
-          {PROCS_CONFIG.map((proc) => {
-            const isActive = !!combatBuffs[proc.key];
-            return (
-              <div key={proc.key} onClick={() => toggleCombatBuff(proc.key)} className="flex flex-col items-center cursor-pointer group" title={`${proc.label}: Click to toggle (${isActive ? 'Active' : 'Inactive'})`}>
-                <img src={getAbilityIconUrl(proc.ability, 'large')} alt={proc.label} className={`ww-icon-40 transition-transform group-hover:scale-105 ${isActive ? 'border-[#1861ac] shadow-sm' : 'ww-grayscale'}`} />
-                <span className={`text-[10px] mt-1 text-center font-medium leading-tight max-w-[60px] truncate ${isActive ? 'text-[#1861ac] font-bold' : 'text-[#777777]'}`}>{proc.label}</span>
+        <div className="space-y-2">
+          {apl.map((item, idx) => (
+            <div key={item.id || idx} className="flex flex-wrap md:flex-nowrap items-center gap-2.5 p-2 bg-white border border-[#dddddd] rounded hover:border-[#bbbbbb] transition-colors">
+              <span className="font-mono text-xs font-bold text-[#888888] w-6 shrink-0">#{idx + 1}</span>
+              <input type="checkbox" checked={item.enabled} onChange={() => toggleRow(idx)} className="w-4 h-4 text-[#1861ac] cursor-pointer shrink-0" />
+              <img
+                src={getAbilityIconUrl(APL_ABILITIES.find((a) => a.value === item.ability)?.label || item.ability, 'medium')}
+                alt=""
+                className={`w-8 h-8 rounded border border-[#aaaaaa] shrink-0 object-cover ${item.enabled ? '' : 'ww-grayscale'}`}
+              />
+              <select
+                value={item.ability}
+                onChange={(e) => changeAbility(idx, e.target.value as AplActionItem['ability'])}
+                className="text-xs border border-[#cccccc] rounded px-2 py-1 bg-white font-semibold text-black cursor-pointer"
+              >
+                {APL_ABILITIES.map((a) => (
+                  <option key={a.value} value={a.value}>{a.label}</option>
+                ))}
+              </select>
+
+              <div className="flex-1 flex flex-wrap items-center gap-1.5 min-w-0">
+                {item.conditions.map((cond, cIdx) => (
+                  <span key={cIdx} className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] bg-[#eeeeee] border border-[#cccccc] text-black font-medium">
+                    <span>{COND_LABELS[cond.type] || cond.type}</span>
+                    {['rage_gte', 'rage_lte', 'ap_gte', 'time_remaining_lte', 'targets_gte'].includes(cond.type) && (
+                      <input
+                        type="number"
+                        value={cond.value ?? 0}
+                        onChange={(e) => updateCondValue(idx, cIdx, +e.target.value)}
+                        className="ww-inline-input w-10 text-[11px] font-mono px-0.5"
+                      />
+                    )}
+                    <button onClick={() => removeCondition(idx, cIdx)} className="text-[#888888] hover:text-[#c00] font-bold text-xs ml-0.5" title="Remove condition">×</button>
+                  </span>
+                ))}
+                <select
+                  value=""
+                  onChange={(e) => { addCondition(idx, e.target.value as AplCondition['type']); e.target.value = ''; }}
+                  className="text-[10px] bg-white text-[#1861ac] border border-dashed border-[#1861ac]/50 rounded px-1.5 py-0.5 cursor-pointer font-medium hover:border-[#1861ac]"
+                >
+                  <option value="">+ Cond</option>
+                  <option value="always">Always</option>
+                  <option value="rage_gte">Rage &ge;</option>
+                  <option value="rage_lte">Rage &le;</option>
+                  <option value="execute_phase">&lt;20% HP</option>
+                  <option value="non_execute_phase">&ge;20% HP</option>
+                  <option value="ap_gte">AP &ge;</option>
+                  <option value="time_remaining_lte">Time &le;</option>
+                  <option value="bt_ww_cd">BT/WW on CD</option>
+                </select>
               </div>
-            );
-          })}
-        </div>
-      </section>
 
-      {/* 3. SECTION 3 — Breakpoint Advisor & DPR/DPET Spell Efficiency */}
-      <section className="space-y-3">
-        <div className="border-b border-[#000000] pb-1.5 flex items-center justify-between">
-          <h2 className="text-sm font-bold tracking-tight uppercase text-[#000000]">Bloodthirst vs. Execute Breakpoint Advisor & Spell Efficiency</h2>
-          <span className="text-[11px] text-[#555555]">Target Breakpoint: {impExecuteRank === 2 ? '2,000 AP' : '1,833 AP (0/2 Imp Execute)'}</span>
-        </div>
-
-        <div className="p-3 bg-[#eeeeee] border-l-4 border-[#1861ac] text-xs text-[#000000] rounded-r space-y-1">
-          <div className="font-bold flex items-center justify-between">
-            <span>Breakpoint Analysis: Bloodthirst (30 Rage) vs Execute (30 Rage)</span>
-            <span className="font-semibold text-[#1861ac]">Baseline: {baselineAp} AP | Active: {activeAp} AP</span>
-          </div>
-          <p className="text-[#333333] leading-relaxed">
-            {activeAp >= btBreakpoint
-              ? `Active AP (${activeAp}) is AT OR ABOVE the ${btBreakpoint} AP breakpoint. Bloodthirst (0.45 AP) delivers higher DPR than a 30-rage Execute and strictly surpasses the 15 dmg/rage marginal execute overflow. In Execute phase, cast Bloodthirst on cooldown whenever AP >= ${btBreakpoint} or Rage >= 45.`
-              : `Active AP (${activeAp}) is BELOW the ${btBreakpoint} AP breakpoint (${btBreakpoint} AP required). Prioritize Execute at low rage (<35 rage), but cast Bloodthirst when pooling ≥ 45 Rage to prevent rage overflow.`}
-          </p>
-        </div>
-
-        <div className="overflow-x-auto border border-[#dddddd] bg-white">
-          <table className="ww-table w-full text-xs text-left border-collapse">
-            <thead>
-              <tr>
-                <th className="w-10 text-center">Rank</th>
-                <th>Ability</th>
-                <th className="text-right">Rage (Nom/Eff)</th>
-                <th className="text-right">Exec Time</th>
-                <th className="text-right">Baseline Avg</th>
-                <th className="text-right">Active Avg</th>
-                <th className="text-right">Δ Base %</th>
-                <th className="text-right">DPR</th>
-                <th className="text-right">DPET</th>
-                <th>Priority Role</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report?.spells?.map((spell, index) => (
-                <tr key={spell.id || spell.name} className="ww-item-row">
-                  <td className="text-center font-bold text-[#000000]">{index + 1}</td>
-                  <td className="font-medium">
-                    <div className="flex items-center space-x-2">
-                      <img src={getAbilityIconUrl(spell.name, 'small')} alt={spell.name} className="w-6 h-6 border border-[#aaaaaa] object-cover inline-block shrink-0" />
-                      <span className="text-[#000000]">{spell.name}</span>
-                    </div>
-                  </td>
-                  <td className="text-right">{spell.rageCost} / {spell.effectiveRageCost}</td>
-                  <td className="text-right">{spell.executionTimeSec > 0 ? `${spell.executionTimeSec}s` : 'Instant'}</td>
-                  <td className="text-right">{Math.round(spell.baselineDamage)}</td>
-                  <td className="text-right font-semibold text-[#000000]">{Math.round(spell.buffedDamage)}</td>
-                  <td className="text-right text-[#1861ac] font-medium">+{spell.deltaPctFromBaseline.toFixed(1)}%</td>
-                  <td className="text-right font-bold text-[#000000]">{spell.buffedDpr.toFixed(1)}</td>
-                  <td className="text-right">{Math.round(spell.buffedDpet)}</td>
-                  <td className="text-[#555555] text-[11px] max-w-xs">{spell.recommendation}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 4. SECTION 4 — Priority Profile Batch Simulator */}
-      <section className="space-y-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-[#000000] pb-1.5">
-          <div>
-            <h2 className="text-sm font-bold tracking-tight uppercase text-[#000000]">Priority Profile Batch Simulator</h2>
-            <div className="text-[11px] text-[#555555]">Benchmark empirically tested rotation strategies under your exact gear, enchants & talents</div>
-          </div>
-          <button
-            type="button"
-            disabled={isBatchRunning}
-            onClick={handleRunBatchProfiles}
-            className="bg-[#1861ac] text-white px-4 py-1.5 text-xs font-semibold hover:bg-[#144e8c] disabled:opacity-50 rounded cursor-pointer transition-colors"
-          >
-            {isBatchRunning ? `Simulating (${batchProgress?.current || 0}/${batchProgress?.total || PRIORITY_PRESET_PROFILES.length})...` : 'Simulate All Profiles'}
-          </button>
-        </div>
-
-        <div className="overflow-x-auto border border-[#dddddd] bg-white">
-          <table className="ww-table w-full text-xs text-left border-collapse">
-            <thead>
-              <tr>
-                <th className="w-52">Profile</th>
-                <th>Description</th>
-                <th className="w-24 text-right">Sim DPS</th>
-                <th className="w-24 text-right">Δ DPS</th>
-                <th className="w-20 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {profiles.map((p) => (
-                <tr key={p.id} className="ww-item-row">
-                  <td className="font-semibold text-[#000000]">{p.name}</td>
-                  <td className="text-[#555555] text-[11px]">{p.description}</td>
-                  <td className="text-right font-bold text-[#000000]">{p.simDps !== undefined ? `${p.simDps.toFixed(1)}` : '—'}</td>
-                  <td className="text-right font-semibold">
-                    {p.dpsDelta !== undefined ? (
-                      <span className={p.dpsDelta >= 0 ? 'text-green-700' : 'text-red-700'}>
-                        {p.dpsDelta >= 0 ? `+${p.dpsDelta.toFixed(1)}` : p.dpsDelta.toFixed(1)}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => onChange({ ...rotation, ...p.rotation })}
-                      className="bg-[#1861ac] text-white px-3 py-1 text-xs font-semibold hover:bg-[#144e8c] rounded cursor-pointer transition-colors"
-                    >
-                      Apply
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <div className="flex items-center gap-1 shrink-0 ml-auto">
+                <button onClick={() => moveRow(idx, -1)} disabled={idx === 0} className="px-1.5 py-0.5 text-xs text-[#555555] hover:text-black disabled:opacity-20 font-bold" title="Move Up">↑</button>
+                <button onClick={() => moveRow(idx, 1)} disabled={idx === apl.length - 1} className="px-1.5 py-0.5 text-xs text-[#555555] hover:text-black disabled:opacity-20 font-bold" title="Move Down">↓</button>
+                <button onClick={() => deleteRow(idx)} className="px-1.5 py-0.5 text-xs text-[#888888] hover:text-[#c00] font-bold" title="Delete Row">✕</button>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>

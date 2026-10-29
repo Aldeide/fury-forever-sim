@@ -17,8 +17,20 @@ pub fn get_weapons(items: &[ItemStats], buffs: &BuffConfig) -> (WeaponInfo, Opti
     let mut th_item = None;
 
     for item in items {
-        match item.slot.to_lowercase().as_str() {
-            "mainhand" => mh_item = Some(item),
+        let slot_str = item.slot.to_lowercase();
+        let is_2h_type = item.weapon_type.as_deref().map(|t| {
+            let t_low = t.to_lowercase();
+            t_low.starts_with("twohand") || t_low.contains("polearm") || t_low == "2h"
+        }).unwrap_or(false);
+
+        match slot_str.as_str() {
+            "mainhand" => {
+                if is_2h_type {
+                    th_item = Some(item);
+                } else {
+                    mh_item = Some(item);
+                }
+            }
             "offhand" => oh_item = Some(item),
             "twohand" => th_item = Some(item),
             _ => {}
@@ -26,7 +38,7 @@ pub fn get_weapons(items: &[ItemStats], buffs: &BuffConfig) -> (WeaponInfo, Opti
     }
 
     if let Some(th) = th_item {
-        let weightstone = if buffs.dense_weightstone_mh { 8.0 } else { 0.0 };
+        let weightstone = if buffs.dense_weightstone_mh && !buffs.windfury_totem { 8.0 } else { 0.0 };
         let speed = if th.speed > 0.1 { th.speed } else { 3.6 };
         let min_dmg = (if th.min_dmg > 0.0 { th.min_dmg } else { 180.0 }) + weightstone;
         let max_dmg = (if th.max_dmg > 0.0 { th.max_dmg } else { 270.0 }) + weightstone;
@@ -52,7 +64,7 @@ pub fn get_weapons(items: &[ItemStats], buffs: &BuffConfig) -> (WeaponInfo, Opti
             weapon_type: Some("sword".to_string()),
             ..Default::default()
         });
-        let weightstone_mh = if buffs.dense_weightstone_mh { 8.0 } else { 0.0 };
+        let weightstone_mh = if buffs.dense_weightstone_mh && !buffs.windfury_totem { 8.0 } else { 0.0 };
         let mh_speed = if mh.speed > 0.1 { mh.speed } else { 2.6 };
         let mh_min_dmg = (if mh.min_dmg > 0.0 { mh.min_dmg } else { 100.0 }) + weightstone_mh;
         let mh_max_dmg = (if mh.max_dmg > 0.0 { mh.max_dmg } else { 150.0 }) + weightstone_mh;
@@ -174,6 +186,12 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
         let bs_scaling = 1.0 + 0.05 * (config.talents.improved_battle_shout as f64).min(5.0);
         buff_ap += 232.0 * bs_scaling;
     }
+    if config.buffs.consecrated_sharpening_stone_mh && !config.buffs.windfury_totem {
+        buff_ap += 100.0;
+    }
+    if config.buffs.consecrated_sharpening_stone_oh {
+        buff_ap += 100.0;
+    }
 
     let total_ap = base_ap + gear_ap + buff_ap;
 
@@ -231,13 +249,19 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     // Weapon Skill Racials are 100% removed in WoW: Forever
     let racial_ws = 0.0;
 
+    let target_level = if config.encounter.boss_level > 0 {
+        config.encounter.boss_level
+    } else {
+        63
+    };
+    let target_defense = (target_level * 5) as f64;
     let mh_weapon_skill = 300.0 + talent_ws + racial_ws + gear_weapon_skill;
-    let delta = (315.0 - mh_weapon_skill).max(0.0);
+    let delta = (target_defense - mh_weapon_skill).max(0.0);
 
     let base_yellow_miss = if delta > 10.0 {
         5.0 + delta * 0.2
     } else {
-        5.0 + delta * 0.1
+        (5.0 + delta * 0.1).max(0.0)
     };
 
     let base_white_miss = if has_offhand {
@@ -270,7 +294,7 @@ pub fn compute_character_sheet(config: &SimConfig) -> CharacterSheetSummary {
     let yellow_miss_pct = (base_yellow_miss - mh_hit_pct).max(0.0);
 
     let dodge_pct = (5.0 + delta * 0.1).max(0.0);
-    let glancing_pct = 40.0;
+    let glancing_pct = (10.0 + (target_defense - mh_weapon_skill.min(300.0)) * 2.0).clamp(0.0, 40.0);
 
     let mh_crit_cap = (100.0 - mh_white_miss_pct - dodge_pct - glancing_pct).max(0.0);
     let oh_crit_cap = if has_offhand {

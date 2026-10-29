@@ -569,7 +569,7 @@ export function analyzeSpellPriorities(
     gcd: 0.0,
     baseRawDmg: hsBaseRaw,
     buffedRawDmg: hsBuffedRaw,
-    recommendation: 'Off-GCD Rage Dump (Eliminates offhand miss penalty on dual-wield; queue when rage >= 45)',
+    recommendation: 'Off-GCD Rage Dump on next Main-Hand swing. Queue when rage >= threshold.',
   });
 
   // 8. Cleave (Next Swing Queue)

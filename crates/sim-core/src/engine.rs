@@ -45,6 +45,7 @@ pub struct SimulationRun {
     oh: Option<WeaponInfo>,
     is_dw: bool,
     dodge_pct: f64,
+    glancing_pct: f64,
     glance_mult: f64,
     norm_mh_speed: f64,
     norm_oh_speed: f64,
@@ -70,9 +71,16 @@ impl SimulationRun {
         // Weapon skill racials are 100% removed in WoW: Forever
         let racial_ws: f64 = 0.0;
 
+        let target_level = if config.encounter.boss_level > 0 {
+            config.encounter.boss_level
+        } else {
+            63
+        };
+        let target_defense = (target_level * 5) as f64;
         let total_ws: f64 = 300.0 + talent_ws + racial_ws + gear_ws;
-        let delta: f64 = f64::max(0.0, 315.0 - total_ws);
+        let delta: f64 = f64::max(0.0, target_defense - total_ws);
         let dodge_pct: f64 = f64::max(0.0, 5.0 + delta * 0.1);
+        let glancing_pct: f64 = (10.0 + (target_defense - total_ws.min(300.0)) * 2.0).clamp(0.0, 40.0);
         let glance_mult: f64 = (0.65 + (total_ws - 300.0) * 0.04).clamp(0.65, 0.95);
 
         let norm_mh_speed: f64 = match mh.weapon_type.to_lowercase().as_str() {
@@ -93,6 +101,7 @@ impl SimulationRun {
             oh,
             is_dw,
             dodge_pct,
+            glancing_pct,
             glance_mult,
             norm_mh_speed,
             norm_oh_speed,
@@ -1171,7 +1180,7 @@ impl SimulationRun {
                     let roll: f64 = rng.gen_range(0.0..100.0);
                     let white_miss = self.sheet.mh_white_miss_pct;
                     let dodge = self.dodge_pct;
-                    let glancing = 40.0;
+                    let glancing = self.glancing_pct;
                     let glance_mult = self.glance_mult;
                     let white_crit_cap = self.sheet.mh_crit_cap;
                     let effective_white_crit = dynamic_crit.min(white_crit_cap);
@@ -1341,7 +1350,7 @@ impl SimulationRun {
                 let roll: f64 = rng.gen_range(0.0..100.0);
                 let oh_miss = self.sheet.oh_white_miss_pct;
                 let dodge = self.dodge_pct;
-                let glancing = 40.0;
+                let glancing = self.glancing_pct;
                 let glance_mult = self.glance_mult;
                 let oh_crit_cap = self.sheet.oh_crit_cap;
                 let effective_oh_crit = dynamic_crit.min(oh_crit_cap);
