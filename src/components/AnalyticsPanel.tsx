@@ -1,5 +1,6 @@
 import React from 'react';
 import { SimResult } from '../types/sim';
+import { getAbilityIconUrl } from '../utils/wowhead';
 import { BarChart3, Activity, Heart, Zap, Cpu } from 'lucide-react';
 
 interface AnalyticsPanelProps {
@@ -171,7 +172,19 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ simResult }) => 
                 const pct = ability.pct ?? ability.percentage ?? 0;
                 return (
                   <tr key={ability.name} className="hover:bg-[#282a2f]/40 transition-colors">
-                    <td className={`p-2.5 font-bold ${textColor}`}>{ability.name}</td>
+                    <td className={`p-2.5 font-bold ${textColor}`}>
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={getAbilityIconUrl(ability.name, 'small')}
+                          alt={ability.name}
+                          className="w-4 h-4 rounded object-cover border border-[#44474e]/50 shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                        <span>{ability.name}</span>
+                      </div>
+                    </td>
                     <td className="p-2.5 text-right font-bold text-[#a8c7fa]">{ability.dps.toFixed(1)}</td>
                     <td className="p-2.5 text-right text-[#c4c6d0]">{pct}%</td>
                     <td className="p-2.5 text-right text-[#8e9099]">{ability.casts}</td>

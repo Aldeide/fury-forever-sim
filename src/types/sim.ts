@@ -117,6 +117,7 @@ export interface ItemStats {
   source?: string;
   phase?: string;
   icon?: string;
+  wowheadId?: number;
   isCustom?: boolean;
   itemType?: '1H' | '2H' | 'OH' | 'Ranged' | 'Armor';
   unique?: boolean;

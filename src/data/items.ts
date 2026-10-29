@@ -15,7 +15,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blacksmithing (Armorsmith)',
     phase: 'Phase 1',
-    icon: 'inv_helmet_11',
+    wowheadId: 12640,
+    icon: 'inv_helmet_36',
   },
   {
     id: 'mask-of-the-unforgiven',
@@ -29,7 +30,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (The Unforgiven)',
     phase: 'Phase 1',
-    icon: 'inv_mask_01',
+    wowheadId: 13404,
+    icon: 'inv_misc_bandana_01',
   },
   {
     id: 'eye-of-rend',
@@ -42,7 +44,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (Warchief Rend Blackhand)',
     phase: 'Phase 1',
-    icon: 'inv_misc_eye_01',
+    wowheadId: 12587,
+    icon: 'inv_helmet_46',
   },
   {
     id: 'helm-of-the-executioner',
@@ -55,6 +58,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Baron Rivendare)',
     phase: 'Phase 1',
+    wowheadId: 22411,
     icon: 'inv_helmet_04',
   },
   {
@@ -68,6 +72,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scarlet Monastery (Herod)',
     phase: 'Phase 1',
+    wowheadId: 7719,
     icon: 'inv_helmet_09',
   },
   {
@@ -81,7 +86,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
-    icon: 'inv_helmet_08',
+    wowheadId: 18817,
+    icon: 'inv_crown_02',
   },
   {
     id: 'helm-of-endless-rage',
@@ -95,7 +101,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Nefarian)',
     phase: 'Phase 3',
-    icon: 'inv_helmet_09',
+    wowheadId: 19372,
+    icon: 'inv_helmet_08',
   },
   {
     id: 'conquerors-crown',
@@ -109,7 +116,22 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Quest)',
     phase: 'Phase 5',
-    icon: 'inv_helmet_09',
+    wowheadId: 21329,
+    icon: 'inv_helmet_72',
+  },
+  {
+    id: 'dreadnaught-helmet',
+    name: 'Dreadnaught Helmet',
+    slot: 'head',
+    armor: 875,
+    str: 21,
+    sta: 45,
+    hit: 1.0,
+    quality: 'epic',
+    source: 'Naxxramas (Thaddius Quest)',
+    phase: 'Phase 6',
+    wowheadId: 22418,
+    icon: 'inv_helmet_58',
   },
   {
     id: 'cryptwalkers-visage',
@@ -153,6 +175,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Quest (In Dreams - Western Plaguelands)',
     phase: 'Phase 1',
+    wowheadId: 15411,
     icon: 'inv_jewelry_necklace_11',
   },
   {
@@ -164,7 +187,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Blackrock Depths (Emperor Dagran Thaurissan)',
     phase: 'Phase 1',
-    icon: 'inv_jewelry_necklace_10',
+    wowheadId: 11933,
+    icon: 'inv_misc_gem_sapphire_01',
   },
   {
     id: 'onyxia-tooth-pendant',
@@ -177,6 +201,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Onyxia (Head of Onyxia Quest)',
     phase: 'Phase 1',
+    wowheadId: 18404,
     icon: 'inv_jewelry_necklace_11',
   },
   {
@@ -189,6 +214,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Princess Huhuran)',
     phase: 'Phase 5',
+    wowheadId: 21664,
     icon: 'inv_jewelry_necklace_20',
   },
   {
@@ -200,7 +226,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Nefarian)',
     phase: 'Phase 3',
-    icon: 'inv_jewelry_necklace_14',
+    wowheadId: 19377,
+    icon: 'inv_jewelry_necklace_17',
   },
   {
     id: 'sadists-collar',
@@ -212,7 +239,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Timmy the Cruel)',
     phase: 'Phase 1',
-    icon: 'inv_jewelry_necklace_07',
+    wowheadId: 13400,
+    icon: 'inv_bracer_17',
   },
   {
     id: 'the-eye-of-hakkar',
@@ -223,6 +251,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Zul\'Gurub (Hakkar)',
     phase: 'Phase 4',
+    wowheadId: 19856,
     icon: 'inv_jewelry_necklace_19',
   },
   {
@@ -235,7 +264,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Sapphiron)',
     phase: 'Phase 6',
-    icon: 'inv_jewelry_necklace_24',
+    wowheadId: 23053,
+    icon: 'inv_jewelry_necklace_27',
   },
   {
     id: 'scarlet-inquisitors-torque',
@@ -275,7 +305,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (Pyroguard Emberseer)',
     phase: 'Phase 1',
-    icon: 'inv_shoulder_10',
+    wowheadId: 12927,
+    icon: 'inv_shoulder_01',
   },
   {
     id: 'black-dragonscale-shoulders',
@@ -287,7 +318,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dragonscale Leatherworking',
     phase: 'Phase 1',
-    icon: 'inv_shoulder_07',
+    wowheadId: 15051,
+    icon: 'inv_shoulder_23',
   },
   {
     id: 'wyrmhide-spaulders',
@@ -300,7 +332,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Quest (Sunken Temple)',
     phase: 'Phase 1',
-    icon: 'inv_shoulder_13',
+    wowheadId: 12082,
+    icon: 'inv_shoulder_14',
   },
   {
     id: 'drake-talon-pauldrons',
@@ -313,7 +346,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Drake Bosses)',
     phase: 'Phase 3',
-    icon: 'inv_shoulder_23',
+    wowheadId: 19394,
+    icon: 'inv_shoulder_22',
   },
   {
     id: 'conquerors-spaulders',
@@ -327,7 +361,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Quest)',
     phase: 'Phase 5',
-    icon: 'inv_shoulder_29',
+    wowheadId: 21330,
+    icon: 'inv_shoulder_19',
   },
   {
     id: 'spaulders-of-the-unseen',
@@ -340,7 +375,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Ruins of Ahn\'Qiraj (Kurinnaxx)',
     phase: 'Phase 5',
-    icon: 'inv_shoulder_01',
+    wowheadId: 13116,
+    icon: 'inv_shoulder_18',
   },
   {
     id: 'pauldrons-of-might',
@@ -353,6 +389,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Lucifron)',
     phase: 'Phase 1',
+    wowheadId: 16868,
     icon: 'inv_shoulder_15',
   },
   {
@@ -397,6 +434,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Baron Rivendare)',
     phase: 'Phase 1',
+    wowheadId: 13340,
     icon: 'inv_misc_cape_20',
   },
   {
@@ -410,6 +448,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Gargoyle Rare)',
     phase: 'Phase 1',
+    wowheadId: 13397,
     icon: 'inv_misc_cape_16',
   },
   {
@@ -423,6 +462,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Ebonroc / Flamegor)',
     phase: 'Phase 3',
+    wowheadId: 19436,
     icon: 'inv_misc_cape_11',
   },
   {
@@ -437,7 +477,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (C\'Thun)',
     phase: 'Phase 5',
-    icon: 'inv_misc_cape_17',
+    wowheadId: 21710,
+    icon: 'inv_misc_cape_16',
   },
   {
     id: 'shroud-of-dominion',
@@ -450,7 +491,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Sapphiron)',
     phase: 'Phase 6',
-    icon: 'inv_misc_cape_20',
+    wowheadId: 23045,
+    icon: 'inv_misc_cape_16',
   },
   {
     id: 'zulian-tigerhide-cloak',
@@ -463,6 +505,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Zul\'Gurub (Bloodlord Mandokir)',
     phase: 'Phase 4',
+    wowheadId: 19907,
     icon: 'inv_misc_cape_18',
   },
   {
@@ -507,6 +550,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'BRD Ring of the Law (Gorosh the Dervish)',
     phase: 'Phase 1',
+    wowheadId: 11726,
     icon: 'inv_chest_chain_15',
   },
   {
@@ -520,6 +564,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scholomance (Mini-Bosses)',
     phase: 'Phase 1',
+    wowheadId: 14637,
     icon: 'inv_chest_leather_08',
   },
   {
@@ -532,7 +577,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dragonscale Leatherworking',
     phase: 'Phase 1',
-    icon: 'inv_chest_chain_03',
+    wowheadId: 15050,
+    icon: 'inv_chest_leather_03',
   },
   {
     id: 'tombstone-breastplate',
@@ -545,7 +591,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scholomance (Darkmaster Gandling)',
     phase: 'Phase 1',
-    icon: 'inv_chest_leather_01',
+    wowheadId: 13944,
+    icon: 'inv_chest_plate04',
   },
   {
     id: 'breastplate-of-bloodthirst',
@@ -557,7 +604,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Quest (Beast Hide - UBRS)',
     phase: 'Phase 1',
-    icon: 'inv_chest_leather_07',
+    wowheadId: 12757,
+    icon: 'inv_chest_leather_08',
   },
   {
     id: 'malfurions-blessed-bulwark',
@@ -570,7 +618,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Ebonroc / Flamegor)',
     phase: 'Phase 3',
-    icon: 'inv_chest_chain_14',
+    wowheadId: 19405,
+    icon: 'inv_chest_plate06',
   },
   {
     id: 'conquerors-breastplate',
@@ -584,7 +633,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Quest)',
     phase: 'Phase 5',
-    icon: 'inv_chest_plate06',
+    wowheadId: 21331,
+    icon: 'inv_chest_plate08',
   },
   {
     id: 'breastplate-of-annihilation',
@@ -598,7 +648,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Sartura / Ossirian)',
     phase: 'Phase 5',
-    icon: 'inv_chest_plate14',
+    wowheadId: 21814,
+    icon: 'inv_chest_plate05',
   },
   {
     id: 'plated-abomination-ribcage',
@@ -612,7 +663,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Thaddius)',
     phase: 'Phase 6',
-    icon: 'inv_chest_plate04',
+    wowheadId: 23000,
+    icon: 'inv_chest_plate08',
   },
   {
     id: 'chitinous-carapace-of-the-swarm',
@@ -656,6 +708,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (Warchief Rend Blackhand)',
     phase: 'Phase 1',
+    wowheadId: 12936,
     icon: 'inv_bracer_07',
   },
   {
@@ -669,7 +722,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Timmy the Cruel)',
     phase: 'Phase 1',
-    icon: 'inv_bracer_17',
+    wowheadId: 13400,
+    icon: 'inv_bracer_06',
   },
   {
     id: 'wristguards-of-stability',
@@ -681,6 +735,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Lucifron / Gehennas)',
     phase: 'Phase 1',
+    wowheadId: 19146,
     icon: 'inv_bracer_03',
   },
   {
@@ -694,6 +749,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Majordomo Executus)',
     phase: 'Phase 1',
+    wowheadId: 18812,
     icon: 'inv_bracer_04',
   },
   {
@@ -707,7 +763,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Anub\'Rekhan)',
     phase: 'Phase 6',
-    icon: 'inv_bracer_07',
+    wowheadId: 22936,
+    icon: 'inv_bracer_17',
   },
   {
     id: 'hive-defiler-wristguards',
@@ -719,6 +776,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Princess Huhuran)',
     phase: 'Phase 5',
+    wowheadId: 21618,
     icon: 'inv_bracer_19',
   },
   {
@@ -732,7 +790,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Silithus (Abyssal Crest Quest)',
     phase: 'Phase 5',
-    icon: 'inv_bracer_16',
+    wowheadId: 21184,
+    icon: 'inv_bracer_07',
   },
   {
     id: 'zandalar-vindicators-armguards',
@@ -745,7 +804,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Zul\'Gurub (Reputation Quest)',
     phase: 'Phase 4',
-    icon: 'inv_bracer_06',
+    wowheadId: 19824,
+    icon: 'inv_bracer_14',
   },
   {
     id: 'shackle-of-the-cryptbound',
@@ -788,7 +848,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'World Drop Level 49',
     phase: 'Phase 1',
-    icon: 'inv_gauntlets_17',
+    wowheadId: 14551,
+    icon: 'inv_gauntlets_30',
   },
   {
     id: 'devilsaur-gauntlets',
@@ -801,6 +862,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Tribal Leatherworking',
     phase: 'Phase 1',
+    wowheadId: 15063,
     icon: 'inv_gauntlets_26',
   },
   {
@@ -814,7 +876,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'LBRS (Highlord Omokk)',
     phase: 'Phase 1',
-    icon: 'inv_gauntlets_28',
+    wowheadId: 13162,
+    icon: 'inv_gauntlets_10',
   },
   {
     id: 'flameguard-gauntlets',
@@ -827,6 +890,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Magmadar / Garr / Gehennas)',
     phase: 'Phase 1',
+    wowheadId: 19143,
     icon: 'inv_gauntlets_26',
   },
   {
@@ -842,6 +906,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Trash Mobs)',
     phase: 'Phase 1',
+    wowheadId: 18823,
     icon: 'inv_gauntlets_23',
   },
   {
@@ -855,6 +920,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Lucifron)',
     phase: 'Phase 1',
+    wowheadId: 16863,
     icon: 'inv_gauntlets_10',
   },
   {
@@ -869,7 +935,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Patchwerk)',
     phase: 'Phase 6',
-    icon: 'inv_gauntlets_30',
+    wowheadId: 21581,
+    icon: 'inv_gauntlets_26',
   },
   {
     id: 'scarlet-fanatics-crushers',
@@ -915,7 +982,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
-    icon: 'inv_belt_09',
+    wowheadId: 19137,
+    icon: 'inv_belt_13',
   },
   {
     id: 'brigam-girdle',
@@ -928,7 +996,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (General Drakkisath)',
     phase: 'Phase 1',
-    icon: 'inv_belt_15',
+    wowheadId: 13142,
+    icon: 'inv_belt_03',
   },
   {
     id: 'omokks-girth-restrainer',
@@ -941,7 +1010,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'LBRS (Warosh Quest)',
     phase: 'Phase 1',
-    icon: 'inv_belt_11',
+    wowheadId: 13959,
+    icon: 'inv_belt_15',
   },
   {
     id: 'muggers-belt',
@@ -955,6 +1025,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dire Maul North (Captain Kromcrush)',
     phase: 'Phase 2',
+    wowheadId: 18505,
     icon: 'inv_belt_02',
   },
   {
@@ -969,6 +1040,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Stratholme (Trash Mobs)',
     phase: 'Phase 1',
+    wowheadId: 19392,
     icon: 'inv_belt_22',
   },
   {
@@ -982,6 +1054,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Twin Emperors)',
     phase: 'Phase 5',
+    wowheadId: 21598,
     icon: 'inv_belt_28',
   },
   {
@@ -997,7 +1070,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Gluth)',
     phase: 'Phase 6',
-    icon: 'inv_belt_26',
+    wowheadId: 23219,
+    icon: 'inv_belt_33',
   },
   {
     id: 'belt-of-the-bonecrypt',
@@ -1042,7 +1116,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Tribal Leatherworking',
     phase: 'Phase 1',
-    icon: 'inv_pants_06',
+    wowheadId: 15062,
+    icon: 'inv_pants_wolf',
   },
   {
     id: 'black-dragonscale-leggings',
@@ -1053,6 +1128,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dragonscale Leatherworking',
     phase: 'Phase 1',
+    wowheadId: 15052,
     icon: 'inv_pants_03',
   },
   {
@@ -1066,6 +1142,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dire Maul West (Immol\'thar)',
     phase: 'Phase 2',
+    wowheadId: 18380,
     icon: 'inv_pants_04',
   },
   {
@@ -1081,6 +1158,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'World Drop Level 57-60',
     phase: 'Phase 1',
+    wowheadId: 14554,
     icon: 'inv_pants_04',
   },
   {
@@ -1094,7 +1172,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blacksmithing (Armorsmith)',
     phase: 'Phase 5',
-    icon: 'inv_pants_04',
+    wowheadId: 22385,
+    icon: 'inv_pants_mail_15',
   },
   {
     id: 'conquerors-legguards',
@@ -1108,6 +1187,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Quest)',
     phase: 'Phase 5',
+    wowheadId: 21332,
     icon: 'inv_pants_04',
   },
   {
@@ -1121,7 +1201,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Gothik the Harvester)',
     phase: 'Phase 6',
-    icon: 'inv_pants_04',
+    wowheadId: 23068,
+    icon: 'inv_pants_mail_14',
   },
   {
     id: 'legguards-of-the-fallen-crusader',
@@ -1134,7 +1215,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Firemaw)',
     phase: 'Phase 3',
-    icon: 'inv_pants_04',
+    wowheadId: 19402,
+    icon: 'inv_pants_03',
   },
   {
     id: 'crypt-reaver-greaves',
@@ -1192,7 +1274,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dragonscale Leatherworking',
     phase: 'Phase 1',
-    icon: 'inv_boots_plate_03',
+    wowheadId: 16984,
+    icon: 'inv_boots_02',
   },
   {
     id: 'windreaver-greaves',
@@ -1204,7 +1287,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scholomance (Kirtonos the Herald)',
     phase: 'Phase 1',
-    icon: 'inv_boots_plate_04',
+    wowheadId: 13967,
+    icon: 'inv_boots_plate_01',
   },
   {
     id: 'bloodmail-boots',
@@ -1217,7 +1301,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scholomance (Trash Bosses)',
     phase: 'Phase 1',
-    icon: 'inv_boots_chain_03',
+    wowheadId: 14616,
+    icon: 'inv_boots_05',
   },
   {
     id: 'chromatic-boots',
@@ -1231,7 +1316,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Chromaggus)',
     phase: 'Phase 3',
-    icon: 'inv_boots_plate_06',
+    wowheadId: 19387,
+    icon: 'inv_boots_plate_03',
   },
   {
     id: 'conquerors-greaves',
@@ -1245,7 +1331,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Quest)',
     phase: 'Phase 5',
-    icon: 'inv_boots_plate_07',
+    wowheadId: 21333,
+    icon: 'inv_boots_plate_01',
   },
   {
     id: 'boots-of-the-vanguard',
@@ -1258,6 +1345,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Ruins of Ahn\'Qiraj (Ayamiss)',
     phase: 'Phase 5',
+    wowheadId: 21493,
     icon: 'inv_boots_05',
   },
   {
@@ -1271,6 +1359,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Gehennas)',
     phase: 'Phase 1',
+    wowheadId: 16862,
     icon: 'inv_boots_plate_04',
   },
   {
@@ -1315,6 +1404,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (General Drakkisath)',
     phase: 'Phase 1',
+    wowheadId: 13098,
     icon: 'inv_jewelry_ring_18',
   },
   {
@@ -1326,7 +1416,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dire Maul North (Tribute Chest)',
     phase: 'Phase 2',
-    icon: 'inv_jewelry_ring_14',
+    wowheadId: 18500,
+    icon: 'inv_jewelry_ring_13',
   },
   {
     id: 'blackstone-ring',
@@ -1338,6 +1429,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Maraudon (Princess Theradras)',
     phase: 'Phase 1',
+    wowheadId: 17713,
     icon: 'inv_jewelry_ring_17',
   },
   {
@@ -1350,6 +1442,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
+    wowheadId: 17063,
     icon: 'inv_jewelry_ring_15',
   },
   {
@@ -1362,7 +1455,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Head of Nefarian Quest)',
     phase: 'Phase 3',
-    icon: 'inv_jewelry_ring_21',
+    wowheadId: 19384,
+    icon: 'inv_jewelry_ring_36',
   },
   {
     id: 'quick-strike-ring',
@@ -1375,7 +1469,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Golemagg / Garr)',
     phase: 'Phase 1',
-    icon: 'inv_jewelry_ring_18',
+    wowheadId: 18821,
+    icon: 'inv_jewelry_ring_07',
   },
   {
     id: 'circle-of-applied-force',
@@ -1387,7 +1482,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Flamegor)',
     phase: 'Phase 3',
-    icon: 'inv_jewelry_ring_24',
+    wowheadId: 19432,
+    icon: 'inv_jewelry_ring_35',
   },
   {
     id: 'ring-of-the-qiraji-fury',
@@ -1399,7 +1495,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (C\'Thun)',
     phase: 'Phase 5',
-    icon: 'inv_jewelry_ring_30',
+    wowheadId: 21677,
+    icon: 'inv_jewelry_ring_40',
   },
   {
     id: 'band-of-unnatural-forces',
@@ -1411,7 +1508,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Loatheb)',
     phase: 'Phase 6',
-    icon: 'inv_jewelry_ring_35',
+    wowheadId: 23038,
+    icon: 'inv_jewelry_ring_41',
   },
   {
     id: 'don-julios-band',
@@ -1424,7 +1522,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Alterac Valley (Exalted)',
     phase: 'Phase 2.5',
-    icon: 'inv_jewelry_ring_23',
+    wowheadId: 19325,
+    icon: 'inv_jewelry_ring_35',
   },
   {
     id: 'band-of-jin',
@@ -1436,7 +1535,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Zul\'Gurub (Jin\'do the Hexxer)',
     phase: 'Phase 4',
-    icon: 'inv_jewelry_ring_28',
+    wowheadId: 19925,
+    icon: 'inv_jewelry_ring_35',
   },
   {
     id: 'band-of-the-crypt-warden',
@@ -1477,7 +1577,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Blackrock Depths (Emperor Dagran Thaurissan)',
     phase: 'Phase 1',
-    icon: 'inv_misc_armorkit_03',
+    wowheadId: 11815,
+    icon: 'inv_jewelry_talisman_01',
   },
   {
     id: 'blackhands-breadth',
@@ -1487,7 +1588,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS Quest (For The Horde / General Drakkisath)',
     phase: 'Phase 1',
-    icon: 'inv_misc_trinket_01',
+    wowheadId: 13965,
+    icon: 'inv_misc_armorkit_09',
   },
   {
     id: 'diamond-flask',
@@ -1499,6 +1601,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Level 50 Warrior Class Quest (Sunken Temple)',
     phase: 'Phase 1',
+    wowheadId: 20130,
     icon: 'inv_drink_01',
   },
   {
@@ -1510,7 +1613,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Ebonroc)',
     phase: 'Phase 3',
-    icon: 'inv_misc_bone_08',
+    wowheadId: 19406,
+    icon: 'inv_jewelry_talisman_11',
   },
   {
     id: 'earthstrike',
@@ -1522,7 +1626,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Silithus Field Duty (Cenarion Circle)',
     phase: 'Phase 5',
-    icon: 'spell_nature_abolishpoison',
+    wowheadId: 21180,
+    icon: 'spell_nature_abolishmagic',
   },
   {
     id: 'badge-of-the-swarmguard',
@@ -1534,7 +1639,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Battleguard Sartura)',
     phase: 'Phase 5',
-    icon: 'inv_misc_trinket_04',
+    wowheadId: 21670,
+    icon: 'inv_misc_ahnqirajtrinket_04',
   },
   {
     id: 'kiss-of-the-spider',
@@ -1548,6 +1654,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Maexxna)',
     phase: 'Phase 6',
+    wowheadId: 22954,
     icon: 'inv_trinket_naxxramas04',
   },
   {
@@ -1561,6 +1668,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Sapphiron)',
     phase: 'Phase 6',
+    wowheadId: 23041,
     icon: 'inv_trinket_naxxramas03',
   },
   {
@@ -1572,7 +1680,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Darkmoon Faire (Warlords Deck)',
     phase: 'Phase 3',
-    icon: 'inv_misc_ticket_tarot_maelstrom',
+    wowheadId: 19289,
+    icon: 'inv_misc_ticket_tarot_maelstrom_01',
   },
   {
     id: 'seal-of-the-scarlet-crusade',
@@ -1619,6 +1728,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (Warchief Rend Blackhand)',
     phase: 'Phase 1',
+    wowheadId: 12940,
     icon: 'inv_sword_43',
   },
   {
@@ -1634,7 +1744,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'UBRS (Warchief Rend Blackhand)',
     phase: 'Phase 1',
-    icon: 'inv_sword_44',
+    wowheadId: 12939,
+    icon: 'inv_sword_40',
   },
   {
     id: 'ironfoe',
@@ -1650,7 +1761,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackrock Depths (Emperor Dagran Thaurissan)',
     phase: 'Phase 1',
-    icon: 'inv_hammer_03',
+    wowheadId: 11684,
+    icon: 'inv_hammer_01',
   },
   {
     id: 'flurry-axe',
@@ -1666,7 +1778,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'World Drop Level 42',
     phase: 'Phase 1',
-    icon: 'inv_axe_06',
+    wowheadId: 871,
+    icon: 'inv_axe_08',
   },
   {
     id: 'mirahs-song',
@@ -1682,7 +1795,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Scholomance (Kirtonos Quest)',
     phase: 'Phase 1',
-    icon: 'inv_sword_39',
+    wowheadId: 15805,
+    icon: 'inv_sword_33',
   },
   {
     id: 'felstriker',
@@ -1698,6 +1812,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'UBRS (Warchief Rend Blackhand)',
     phase: 'Phase 1',
+    wowheadId: 12590,
     icon: 'inv_weapon_shortblade_25',
   },
   {
@@ -1714,6 +1829,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Onyxia (Onyxia\'s Lair)',
     phase: 'Phase 1',
+    wowheadId: 17068,
     icon: 'inv_axe_09',
   },
   {
@@ -1730,7 +1846,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Onyxia (Onyxia\'s Lair)',
     phase: 'Phase 1',
-    icon: 'inv_sword_23',
+    wowheadId: 17075,
+    icon: 'inv_sword_18',
   },
   {
     id: 'brutality-blade',
@@ -1747,7 +1864,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Garr)',
     phase: 'Phase 1',
-    icon: 'inv_sword_15',
+    wowheadId: 18832,
+    icon: 'inv_sword_18',
   },
   {
     id: 'chromatically-tempered-sword',
@@ -1764,7 +1882,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Chromaggus)',
     phase: 'Phase 3',
-    icon: 'inv_sword_15',
+    wowheadId: 19352,
+    icon: 'inv_sword_51',
   },
   {
     id: 'maladath-runed-blade-of-the-black-flight',
@@ -1780,7 +1899,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Broodlord Lashlayer)',
     phase: 'Phase 3',
-    icon: 'inv_sword_46',
+    wowheadId: 19351,
+    icon: 'inv_sword_49',
   },
   {
     id: 'crulshorukh-edge-of-chaos',
@@ -1796,7 +1916,26 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Nefarian)',
     phase: 'Phase 3',
+    wowheadId: 19363,
     icon: 'inv_axe_12',
+  },
+  {
+    id: 'dooms-edge',
+    name: "Doom's Edge",
+    slot: 'onehand',
+    minDmg: 83,
+    maxDmg: 154,
+    speed: 2.3,
+    dps: 51.5,
+    weaponType: 'Axe',
+    str: 9,
+    agi: 16,
+    sta: 7,
+    quality: 'epic',
+    source: 'Blackwing Lair (Trash)',
+    phase: 'Phase 3',
+    wowheadId: 19362,
+    icon: 'inv_axe_08',
   },
   {
     id: 'ancient-qiraji-ripper',
@@ -1812,6 +1951,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Fankriss the Unyielding)',
     phase: 'Phase 5',
+    wowheadId: 21650,
     icon: 'inv_sword_59',
   },
   {
@@ -1829,6 +1969,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Imperial Qiraji Armaments)',
     phase: 'Phase 5',
+    wowheadId: 21242,
     icon: 'inv_axe_22',
   },
   {
@@ -1845,7 +1986,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
-    icon: 'inv_sword_68',
+    wowheadId: 23054,
+    icon: 'inv_sword_61',
   },
   {
     id: 'the-hungering-cold',
@@ -1863,6 +2005,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
+    wowheadId: 23577,
     icon: 'inv_sword_62',
   },
   {
@@ -1879,6 +2022,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Grand Widow Faerlina)',
     phase: 'Phase 6',
+    wowheadId: 23014,
     icon: 'inv_sword_65',
   },
   {
@@ -1896,7 +2040,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Gluth)',
     phase: 'Phase 6',
-    icon: 'inv_hammer_16',
+    wowheadId: 22808,
+    icon: 'inv_mace_27',
   },
   {
     id: 'misplaced-servo-arm',
@@ -1912,7 +2057,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Grobbulus)',
     phase: 'Phase 6',
-    icon: 'inv_mace_14',
+    wowheadId: 23221,
+    icon: 'inv_mace_28',
   },
   {
     id: 'perditions-blade',
@@ -1928,7 +2074,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
-    icon: 'inv_knife_01',
+    wowheadId: 18816,
+    icon: 'inv_knife_03',
   },
   {
     id: 'core-hound-tooth',
@@ -1945,7 +2092,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Lucifron / Magmadar)',
     phase: 'Phase 1',
-    icon: 'inv_knife_01',
+    wowheadId: 18805,
+    icon: 'inv_weapon_shortblade_11',
   },
   {
     id: 'deaths-sting',
@@ -1963,6 +2111,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (C\'Thun)',
     phase: 'Phase 5',
+    wowheadId: 21126,
     icon: 'inv_knife_04',
   },
   {
@@ -1980,6 +2129,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
+    wowheadId: 22802,
     icon: 'inv_knife_05',
   },
   {
@@ -1998,6 +2148,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'legendary',
     source: 'Legendary Bindings Quest (Molten Core)',
     phase: 'Phase 1',
+    wowheadId: 19019,
     icon: 'inv_sword_39',
   },
   {
@@ -2014,6 +2165,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'World Boss (Lord Kazzak)',
     phase: 'Phase 2',
+    wowheadId: 17112,
     icon: 'inv_hammer_05',
   },
   {
@@ -2087,7 +2239,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Ragnaros)',
     phase: 'Phase 1',
-    icon: 'inv_sword_39',
+    wowheadId: 17076,
+    icon: 'inv_sword_12',
   },
   {
     id: 'spinal-reaper',
@@ -2104,6 +2257,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Magmadar)',
     phase: 'Phase 1',
+    wowheadId: 17104,
     icon: 'inv_axe_09',
   },
   {
@@ -2120,7 +2274,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Blackwing Lair (Nefarian)',
     phase: 'Phase 3',
-    icon: 'inv_sword_47',
+    wowheadId: 19364,
+    icon: 'inv_sword_50',
   },
   {
     id: 'dark-edge-of-insanity',
@@ -2139,7 +2294,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (C\'Thun)',
     phase: 'Phase 5',
-    icon: 'inv_axe_23',
+    wowheadId: 21134,
+    icon: 'inv_axe_17',
   },
   {
     id: 'might-of-menethil',
@@ -2157,7 +2313,25 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
-    icon: 'inv_mace_18',
+    wowheadId: 22798,
+    icon: 'inv_mace_29',
+  },
+  {
+    id: 'corrupted-ashbringer',
+    name: 'Corrupted Ashbringer',
+    slot: 'twohand',
+    minDmg: 259,
+    maxDmg: 389,
+    speed: 3.6,
+    dps: 90.0,
+    weaponType: 'TwoHandSword',
+    crit: 2.0,
+    hit: 1.0,
+    quality: 'epic',
+    source: 'Naxxramas (Four Horsemen Chest)',
+    phase: 'Phase 6',
+    wowheadId: 22691,
+    icon: 'inv_sword_60',
   },
   {
     id: 'sulfuras-hand-of-ragnaros',
@@ -2175,6 +2349,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'legendary',
     source: 'Molten Core (Eye of Ragnaros + Sulfuron Hammer)',
     phase: 'Phase 1',
+    wowheadId: 17182,
     icon: 'inv_hammer_unique_sulfuras',
   },
   {
@@ -2191,7 +2366,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Blacksmithing (Weaponsmith)',
     phase: 'Phase 1',
-    icon: 'inv_axe_08',
+    wowheadId: 12784,
+    icon: 'inv_axe_09',
   },
   {
     id: 'the-unstoppable-force',
@@ -2208,7 +2384,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Alterac Valley (Exalted)',
     phase: 'Phase 2.5',
-    icon: 'inv_mace_19',
+    wowheadId: 19323,
+    icon: 'inv_hammer_13',
   },
   {
     id: 'decapitator-of-the-crypt-fiends',
@@ -2261,7 +2438,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'Dire Maul East (Zevrim Thornhoof)',
     phase: 'Phase 2',
-    icon: 'inv_weapon_bow_08',
+    wowheadId: 18323,
+    icon: 'inv_weapon_bow_03',
   },
   {
     id: 'blackcrow',
@@ -2276,7 +2454,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'rare',
     source: 'LBRS (Shadow Hunter Vosh\'gajin)',
     phase: 'Phase 1',
-    icon: 'inv_weapon_crossbow_01',
+    wowheadId: 12651,
+    icon: 'inv_weapon_crossbow_04',
   },
   {
     id: 'strikers-mark',
@@ -2291,6 +2470,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Magmadar)',
     phase: 'Phase 1',
+    wowheadId: 17069,
     icon: 'inv_weapon_bow_08',
   },
   {
@@ -2306,6 +2486,7 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Molten Core (Golemagg)',
     phase: 'Phase 1',
+    wowheadId: 17072,
     icon: 'inv_weapon_rifle_09',
   },
   {
@@ -2322,7 +2503,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Ruins of Ahn\'Qiraj (Ossirian)',
     phase: 'Phase 5',
-    icon: 'inv_weapon_crossbow_07',
+    wowheadId: 21459,
+    icon: 'inv_weapon_crossbow_01',
   },
   {
     id: 'larvae-of-the-great-worm',
@@ -2337,7 +2519,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Temple of Ahn\'Qiraj (Ouro)',
     phase: 'Phase 5',
-    icon: 'inv_weapon_rifle_02',
+    wowheadId: 23557,
+    icon: 'inv_weapon_rifle_10',
   },
   {
     id: 'nerubian-slavemaker',
@@ -2353,7 +2536,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Naxxramas (Kel\'Thuzad)',
     phase: 'Phase 6',
-    icon: 'inv_weapon_crossbow_08',
+    wowheadId: 22812,
+    icon: 'inv_weapon_crossbow_12',
   },
   {
     id: 'mandokirs-sting',
@@ -2368,7 +2552,8 @@ export const ITEMS_DATABASE: ItemStats[] = [
     quality: 'epic',
     source: 'Zul\'Gurub (Bloodlord Mandokir)',
     phase: 'Phase 4',
-    icon: 'inv_weapon_bow_03',
+    wowheadId: 20038,
+    icon: 'inv_weapon_bow_07',
   },
   {
     id: 'crypt-hunters-longbow',

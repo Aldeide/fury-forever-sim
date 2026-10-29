@@ -1,5 +1,6 @@
 import React from 'react';
 import { EquipmentSlot, ItemStats, EnchantInfo, ItemQuality } from '../types/sim';
+import { getWowheadIconUrl } from '../utils/wowhead';
 import { Shield, Sparkles, X, ChevronDown } from 'lucide-react';
 
 interface PaperDollProps {
@@ -101,20 +102,21 @@ export const PaperDoll: React.FC<PaperDollProps> = ({
           }`}
         >
           {item ? (
-            item.icon ? (
+            <>
               <img
-                src={item.icon}
+                src={getWowheadIconUrl(item.icon, 'large')}
                 alt={item.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
+                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                  if (fallback) fallback.style.display = 'flex';
                 }}
               />
-            ) : (
-              <span className={styling?.text}>
+              <span className={`${styling?.text} hidden items-center justify-center w-full h-full text-xs font-bold`}>
                 {item.itemType === '2H' ? '2H' : slot.slice(0, 2).toUpperCase()}
               </span>
-            )
+            </>
           ) : (
             <span className="text-[10px] uppercase text-[#8e9099] font-mono">{slot.slice(0, 3)}</span>
           )}

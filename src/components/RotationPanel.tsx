@@ -7,6 +7,7 @@ import {
   TalentConfig,
 } from '../types/sim';
 import { runSimulation } from '../workers/simRunner';
+import { getAbilityIconUrl } from '../utils/wowhead';
 import {
   Sliders,
   Flame,
@@ -744,6 +745,14 @@ export const RotationPanel: React.FC<RotationPanelProps> = ({
                         <span className="w-5 h-5 rounded-full bg-[#111318] text-[#a8c7fa] border border-[#44474e]/40 text-[10px] font-mono flex items-center justify-center shrink-0">
                           {row.rank}
                         </span>
+                        <img
+                          src={getAbilityIconUrl(row.ability, 'small')}
+                          alt={row.ability}
+                          className="w-5 h-5 rounded object-cover border border-[#44474e]/50 shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
                         <span>{row.ability}</span>
                       </div>
                     </td>

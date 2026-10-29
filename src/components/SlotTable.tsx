@@ -6,6 +6,7 @@ import {
   ItemQuality,
   BatchItemResult,
 } from '../types/sim';
+import { getWowheadIconUrl, getWowheadItemUrl } from '../utils/wowhead';
 import {
   Zap,
   Sparkles,
@@ -14,6 +15,7 @@ import {
   Check,
   PlusCircle,
   ArrowUpDown,
+  ExternalLink,
 } from 'lucide-react';
 
 interface SlotTableProps {
@@ -186,11 +188,11 @@ export const SlotTable: React.FC<SlotTableProps> = ({
 
           <button
             onClick={onOpenCustomItemModal}
-            className="flex items-center space-x-1 px-3 py-2 rounded-full text-xs font-medium border border-[#44474e]/50 bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] hover:text-[#e2e2e9] transition-all"
-            title="Create Custom Item"
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-full text-xs font-medium border border-[#44474e]/50 bg-[#1d2024] hover:bg-[#282a2f] text-[#c4c6d0] hover:text-[#e2e2e9] transition-all"
+            title="Import from Wowhead or Create Custom Item"
           >
             <PlusCircle className="w-3.5 h-3.5 text-[#a8c7fa]" />
-            <span className="hidden sm:inline">Custom Item</span>
+            <span className="hidden sm:inline">Import Wowhead / Custom</span>
           </button>
         </div>
       </div>
@@ -336,32 +338,45 @@ export const SlotTable: React.FC<SlotTableProps> = ({
                       </td>
 
                       <td className="p-2">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2.5">
                           <div
-                            className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 text-[10px] bg-[#111318] ${
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 text-[10px] bg-[#111318] overflow-hidden ${
                               QUALITY_BORDER_COLORS[quality]
                             }`}
                           >
-                            {item.icon ? (
-                              <img
-                                src={item.icon}
-                                alt={item.name}
-                                className="w-full h-full object-cover rounded-md"
-                                onError={(e) => {
-                                  (e.target as HTMLElement).style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              <span>{item.name.charAt(0)}</span>
-                            )}
+                            <img
+                              src={getWowheadIconUrl(item.icon, 'medium')}
+                              alt={item.name}
+                              className="w-full h-full object-cover rounded-md"
+                              onError={(e) => {
+                                (e.target as HTMLElement).style.display = 'none';
+                                const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                            <span className={`${QUALITY_TEXT_COLORS[quality]} hidden items-center justify-center w-full h-full font-bold`}>
+                              {item.name.charAt(0)}
+                            </span>
                           </div>
                           <div>
-                            <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
-                            {item.isCustom && (
-                              <span className="ml-1.5 px-1.5 py-0.2 text-[9px] rounded-full bg-[#4f378b] text-[#eddcff] font-mono">
-                                Custom
-                              </span>
-                            )}
+                            <div className="flex items-center">
+                              <span className={QUALITY_TEXT_COLORS[quality]}>{item.name}</span>
+                              {item.isCustom && (
+                                <span className="ml-1.5 px-1.5 py-0.2 text-[9px] rounded-full bg-[#4f378b] text-[#eddcff] font-mono">
+                                  Custom
+                                </span>
+                              )}
+                              <a
+                                href={getWowheadItemUrl(item)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                title="View on Wowhead"
+                                className="text-[#8e9099] hover:text-[#a8c7fa] inline-flex items-center ml-1.5 transition-colors p-0.5 rounded hover:bg-[#282a2f]"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </td>

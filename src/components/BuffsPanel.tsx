@@ -1,6 +1,7 @@
 import React from 'react';
 import { BuffConfig, EncounterConfig, Race } from '../types/sim';
 import { BUFFS_DATABASE } from '../data/buffs';
+import { getWowheadIconUrl } from '../utils/wowhead';
 import {
   Shield,
   Flame,
@@ -238,13 +239,25 @@ export const BuffsPanel: React.FC<BuffsPanelProps> = ({
               >
                 <div className="flex items-center space-x-2.5 min-w-0 pr-2">
                   <div
-                    className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 text-xs font-bold ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 overflow-hidden ${
                       isChecked
-                        ? 'border-[#a8c7fa]/50 bg-[#284777] text-[#d6e3ff]'
-                        : 'border-[#44474e]/40 bg-[#111318] text-[#8e9099]'
+                        ? 'border-[#a8c7fa]/70 bg-[#111318]'
+                        : 'border-[#44474e]/40 bg-[#111318]'
                     }`}
                   >
-                    {item.name.charAt(0)}
+                    <img
+                      src={getWowheadIconUrl(item.icon, 'medium')}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                        const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                      }}
+                    />
+                    <span className="hidden text-xs font-bold text-[#8e9099]">
+                      {item.name.charAt(0)}
+                    </span>
                   </div>
                   <div className="min-w-0">
                     <div className={`text-xs font-semibold truncate ${isChecked ? 'text-[#e2e2e9]' : 'text-[#c4c6d0]'}`}>

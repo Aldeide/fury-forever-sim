@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ItemStats, EquipmentSlot, ItemQuality, WeaponType } from '../types/sim';
-import { X, Sparkles } from 'lucide-react';
+import { fetchWowheadItemByIdOrUrl, getWowheadIconUrl } from '../utils/wowhead';
+import { X, Sparkles, Download, AlertCircle } from 'lucide-react';
 
 interface CustomItemModalProps {
   isOpen: boolean;
@@ -60,6 +61,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
   const [quality, setQuality] = useState<ItemQuality>('epic');
   const [source, setSource] = useState('Karazhan Crypts (WoW: Forever)');
   const [phase, setPhase] = useState('WoW: Forever');
+  const [icon, setIcon] = useState('inv_sword_39');
   const [str, setStr] = useState<number>(0);
   const [agi, setAgi] = useState<number>(0);
   const [ap, setAp] = useState<number>(0);
@@ -73,6 +75,10 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
   const [maxDmg, setMaxDmg] = useState<number>(190);
   const [weaponType, setWeaponType] = useState<WeaponType>('sword');
 
+  const [wowheadInput, setWowheadInput] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
   const [importJsonText, setImportJsonText] = useState('');
   const [exportedJsonText, setExportedJsonText] = useState('');
   const [activeTab, setActiveTab] = useState<'create' | 'importExport'>('create');
@@ -80,6 +86,37 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
   if (!isOpen) return null;
 
   const isWeapon = slot === 'mainhand' || slot === 'offhand' || slot === 'twohand' || slot === 'ranged';
+
+  const handleWowheadImport = async () => {
+    if (!wowheadInput.trim()) return;
+    setIsImporting(true);
+    setImportError(null);
+    try {
+      const itemData = await fetchWowheadItemByIdOrUrl(wowheadInput.trim(), slot);
+      if (itemData.name) setName(itemData.name);
+      if (itemData.slot) setSlot(itemData.slot as EquipmentSlot);
+      if (itemData.quality) setQuality(itemData.quality);
+      if (itemData.source) setSource(itemData.source);
+      if (itemData.phase) setPhase(itemData.phase);
+      if (itemData.icon) setIcon(itemData.icon);
+      if (itemData.str !== undefined) setStr(itemData.str);
+      if (itemData.agi !== undefined) setAgi(itemData.agi);
+      if (itemData.ap !== undefined) setAp(itemData.ap);
+      if (itemData.crit !== undefined) setCrit(itemData.crit);
+      if (itemData.hit !== undefined) setHit(itemData.hit);
+      if (itemData.ohHit !== undefined) setOhHit(itemData.ohHit);
+      if (itemData.haste !== undefined) setHaste(itemData.haste);
+      if (itemData.weaponSkill !== undefined) setWeaponSkill(itemData.weaponSkill);
+      if (itemData.speed !== undefined) setSpeed(itemData.speed);
+      if (itemData.minDmg !== undefined) setMinDmg(itemData.minDmg);
+      if (itemData.maxDmg !== undefined) setMaxDmg(itemData.maxDmg);
+      if (itemData.weaponType !== undefined) setWeaponType(itemData.weaponType as WeaponType);
+    } catch (err: any) {
+      setImportError(err.message || 'Failed to import item from Wowhead');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +129,7 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
       quality,
       source,
       phase,
+      icon: icon || undefined,
       isCustom: true,
       str: str || undefined,
       agi: agi || undefined,
@@ -171,11 +209,69 @@ export const CustomItemModal: React.FC<CustomItemModalProps> = ({
         <div className="flex-1 overflow-y-auto py-4">
           {activeTab === 'create' ? (
             <form onSubmit={handleSave} className="space-y-4">
+              {/* Quick Import from Wowhead Banner */}
+              <div className="bg-[#111318] border border-[#a8c7fa]/30 rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#a8c7fa] flex items-center gap-1.5">
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Quick Import from Wowhead</span>
+                  </span>
+                  <span className="text-[10px] text-[#8e9099] font-mono">
+                    Accepts Item ID or Wowhead URL
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={wowheadInput}
+                    onChange={(e) => setWowheadInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleWowheadImport();
+                      }
+                    }}
+                    placeholder="Paste Wowhead Item URL or ID (e.g. 19019 or https://www.wowhead.com/classic/item=19364)..."
+                    className="flex-1 bg-[#1d2024] border border-[#44474e]/40 rounded-xl px-3 py-2 text-xs text-[#e2e2e9] placeholder-[#8e9099] focus:outline-none focus:border-[#a8c7fa] font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleWowheadImport}
+                    disabled={isImporting || !wowheadInput.trim()}
+                    className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
+                      isImporting || !wowheadInput.trim()
+                        ? 'bg-[#284777]/50 text-[#8e9099] cursor-not-allowed'
+                        : 'bg-[#a8c7fa] hover:bg-[#c2e7ff] text-[#062e6f] shadow-sm'
+                    }`}
+                  >
+                    {isImporting ? 'Fetching...' : 'Import'}
+                  </button>
+                </div>
+
+                {importError && (
+                  <div className="flex items-center gap-1.5 text-xs text-[#f28b82] font-medium pt-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{importError}</span>
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="text-xs font-semibold text-[#c4c6d0] block mb-1">
-                    Item Name *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-[#c4c6d0]">
+                      Item Name *
+                    </label>
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#8e9099]">
+                      <span>Icon:</span>
+                      <img
+                        src={getWowheadIconUrl(icon, 'small')}
+                        alt="icon preview"
+                        className="w-5 h-5 rounded border border-[#44474e]/40 object-cover"
+                      />
+                    </div>
+                  </div>
                   <input
                     type="text"
                     required

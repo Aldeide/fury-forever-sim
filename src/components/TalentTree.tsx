@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TalentConfig, TalentTreeNode } from '../types/sim';
 import { TALENT_NODES, calculateTalentPoints, DEFAULT_TALENTS_17_34, DEFAULT_TALENTS_2H } from '../data/talents';
+import { getWowheadIconUrl } from '../utils/wowhead';
 import { Sparkles, Shield, RotateCcw, ArrowDown, Info, Award } from 'lucide-react';
 
 interface TalentTreeProps {
@@ -198,7 +199,7 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
                       key={colNum}
                       onContextMenu={(e) => handleRemovePoint(node, e)}
                       onClick={(e) => handleAddPoint(node, e)}
-                      className={`relative group h-20 p-2.5 rounded-xl border cursor-pointer select-none transition-all flex flex-col justify-between ${
+                      className={`relative group h-20 p-2.5 rounded-xl border cursor-pointer select-none transition-all flex items-center gap-2.5 ${
                         isMaxed
                           ? 'bg-[#0f5223]/20 border-[#81c995]/70 ring-1 ring-[#81c995]/40 shadow-sm'
                           : isAllocated
@@ -206,53 +207,83 @@ export const TalentTree: React.FC<TalentTreeProps> = ({ talents, onChange }) => 
                           : 'bg-[#191c20] border-[#44474e]/30 hover:border-[#44474e]/60 hover:bg-[#282a2f]/40'
                       }`}
                     >
-                      {/* Top Row: Name & New Badge */}
-                      <div className="flex items-start justify-between gap-1">
-                        <span
-                          className={`text-xs font-semibold leading-tight line-clamp-1 ${
-                            isMaxed
-                              ? 'text-[#81c995]'
-                              : isAllocated
-                              ? 'text-[#d6e3ff]'
-                              : 'text-[#c4c6d0]'
+                      {/* Left: Wowhead Icon */}
+                      <div
+                        className={`w-9 h-9 rounded-lg border shrink-0 overflow-hidden ${
+                          isMaxed
+                            ? 'border-[#81c995] shadow-sm'
+                            : isAllocated
+                            ? 'border-[#a8c7fa]'
+                            : 'border-[#44474e]/40'
+                        }`}
+                      >
+                        <img
+                          src={getWowheadIconUrl(node.icon, 'large')}
+                          alt={node.name}
+                          className={`w-full h-full object-cover transition-all ${
+                            rank === 0 ? 'grayscale opacity-60' : 'opacity-100'
                           }`}
-                        >
-                          {node.name}
-                        </span>
-
-                        {isForeverNew && (
-                          <span className="shrink-0 text-[8px] font-mono uppercase px-1 py-0.2 rounded-full bg-[#4f378b] text-[#eddcff]">
-                            New
-                          </span>
-                        )}
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
                       </div>
 
-                      {/* Bottom Row: Rank Indicator */}
-                      <div className="flex items-center justify-between mt-auto pt-1">
-                        <span
-                          className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
-                            isMaxed
-                              ? 'bg-[#0f5223] text-[#81c995] border border-[#81c995]/40'
-                              : isAllocated
-                              ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40'
-                              : 'bg-[#111318] text-[#8e9099]'
-                          }`}
-                        >
-                          {rank} / {node.maxRank}
-                        </span>
+                      {/* Right: Info */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between h-full">
+                        <div className="flex items-start justify-between gap-1">
+                          <span
+                            className={`text-xs font-semibold leading-tight truncate ${
+                              isMaxed
+                                ? 'text-[#81c995]'
+                                : isAllocated
+                                ? 'text-[#d6e3ff]'
+                                : 'text-[#c4c6d0]'
+                            }`}
+                          >
+                            {node.name}
+                          </span>
 
-                        <span className="text-[10px] text-[#8e9099] opacity-0 group-hover:opacity-100 transition-opacity">
-                          L-Click + &bull; R-Click -
-                        </span>
+                          {isForeverNew && (
+                            <span className="shrink-0 text-[8px] font-mono uppercase px-1 py-0.2 rounded-full bg-[#4f378b] text-[#eddcff]">
+                              New
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-auto">
+                          <span
+                            className={`text-[11px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
+                              isMaxed
+                                ? 'bg-[#0f5223] text-[#81c995] border border-[#81c995]/40'
+                                : isAllocated
+                                ? 'bg-[#284777] text-[#d6e3ff] border border-[#a8c7fa]/40'
+                                : 'bg-[#111318] text-[#8e9099]'
+                            }`}
+                          >
+                            {rank} / {node.maxRank}
+                          </span>
+
+                          <span className="text-[10px] text-[#8e9099] opacity-0 group-hover:opacity-100 transition-opacity">
+                            L+ / R-
+                          </span>
+                        </div>
                       </div>
 
                       {/* Tooltip on Hover */}
                       <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-50 w-64 p-3 bg-[#111318] border border-[#44474e]/60 rounded-xl shadow-xl pointer-events-none text-left">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-bold text-[#e2e2e9]">{node.name}</span>
-                          <span className="text-[10px] font-mono text-[#a8c7fa]">
-                            Rank {rank}/{node.maxRank}
-                          </span>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <img
+                            src={getWowheadIconUrl(node.icon, 'small')}
+                            alt={node.name}
+                            className="w-6 h-6 rounded-md border border-[#44474e]/50 object-cover shrink-0"
+                          />
+                          <div className="flex-1 flex justify-between items-center min-w-0">
+                            <span className="text-xs font-bold text-[#e2e2e9] truncate">{node.name}</span>
+                            <span className="text-[10px] font-mono text-[#a8c7fa] ml-1 shrink-0">
+                              Rank {rank}/{node.maxRank}
+                            </span>
+                          </div>
                         </div>
                         <div className="text-[11px] text-[#c4c6d0] leading-snug">{desc}</div>
 
